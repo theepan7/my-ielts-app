@@ -1,7 +1,3 @@
-// src/firebase/config.js
-// Firebase is initialized here using environment variables.
-// Never commit your real .env file — only .env.example goes to GitHub.
-
 import { initializeApp } from 'firebase/app'
 import { getAuth } from 'firebase/auth'
 import { getFirestore } from 'firebase/firestore'
