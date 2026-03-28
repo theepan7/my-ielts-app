@@ -185,3 +185,5 @@ export function calcBand(correct) {
   if (correct >= 16) return '5.0'
   return '4.5'
 }
+// Alias for backward compatibility
+export const fetchUserResults = fetchUserCompletedTests
