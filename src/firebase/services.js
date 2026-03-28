@@ -1,98 +1,165 @@
 // src/firebase/services.js
-// All Firestore read/write operations live here.
-
 import {
-  collection, doc, getDocs, getDoc,
-  addDoc, query, orderBy, limit,
-  where, serverTimestamp, updateDoc, increment
+  collection, doc, getDoc, getDocs,
+  addDoc, setDoc, updateDoc,
+  query, orderBy, limit, where,
+  serverTimestamp, runTransaction
 } from 'firebase/firestore'
 import { db } from './config'
 
-// ─── TESTS ───────────────────────────────────────────
+// ─────────────────────────────────────────────────────────
+//  TESTS
+// ─────────────────────────────────────────────────────────
 
-// Fetch all tests (or filtered by category)
+// Fetch all tests metadata (no questions)
 export async function fetchTests(category = null) {
-  let q = collection(db, 'tests')
-  if (category) {
-    q = query(q, where('category', '==', category), orderBy('id'))
-  } else {
-    q = query(q, orderBy('id'))
-  }
+  let q = category
+    ? query(collection(db, 'tests'), where('category', '==', category), orderBy('id'))
+    : query(collection(db, 'tests'), orderBy('id'))
+
   const snap = await getDocs(q)
   return snap.docs.map(d => ({ docId: d.id, ...d.data() }))
 }
 
-// Fetch a single test with all sections and questions
-export async function fetchTestDetail(testDocId) {
-  // Get sections
-  const secSnap = await getDocs(
-    query(collection(db, 'tests', testDocId, 'sections'), orderBy('sectionNo'))
+// Fetch one test's parts and sections with questions
+export async function fetchTestWithQuestions(testDocId) {
+  // 1. Get test metadata
+  const testSnap = await getDoc(doc(db, 'tests', testDocId))
+  if (!testSnap.exists()) throw new Error('Test not found')
+  const test = { docId: testSnap.id, ...testSnap.data() }
+
+  // 2. Get parts
+  const partsSnap = await getDocs(
+    query(collection(db, 'tests', testDocId, 'parts'), orderBy('partNo'))
   )
 
-  const sections = await Promise.all(
-    secSnap.docs.map(async secDoc => {
-      // Get questions for each section
-      const qSnap = await getDocs(
-        query(collection(db, 'tests', testDocId, 'sections', secDoc.id, 'questions'), orderBy('questionNo'))
+  // 3. Get sections for each part
+  test.parts = await Promise.all(
+    partsSnap.docs.map(async partDoc => {
+      const part = { id: partDoc.id, ...partDoc.data() }
+
+      const sectionsSnap = await getDocs(
+        query(
+          collection(db, 'tests', testDocId, 'parts', partDoc.id, 'sections'),
+          orderBy('order')
+        )
       )
-      const questions = qSnap.docs.map(qDoc => ({ id: qDoc.id, ...qDoc.data() }))
-      return { id: secDoc.id, ...secDoc.data(), questions }
+      part.sections = sectionsSnap.docs.map(s => ({ id: s.id, ...s.data() }))
+      return part
     })
   )
 
-  return sections
+  return test
 }
 
-// ─── RESULTS ─────────────────────────────────────────
+// ─────────────────────────────────────────────────────────
+//  RESULTS
+// ─────────────────────────────────────────────────────────
 
-// Save a test result after submission
-export async function saveResult(userId, testId, score, band, answers) {
+export async function saveResult(userId, userName, testDocId, testId, correct, total, band, partScores) {
+  // 1. Save result document
   await addDoc(collection(db, 'results'), {
     userId,
+    userName,
+    testDocId,
     testId,
-    score,
+    correct,
+    total,
     band,
-    answers,
+    percentage: Math.round((correct / total) * 100),
+    partScores,
     completedAt: serverTimestamp(),
   })
 
-  // Update leaderboard entry for this user
+  // 2. Update leaderboard atomically
   const lbRef = doc(db, 'leaderboard', userId)
-  const lbSnap = await getDoc(lbRef)
+  await runTransaction(db, async tx => {
+    const lbSnap = await tx.get(lbRef)
 
-  if (lbSnap.exists()) {
-    const data = lbSnap.data()
-    const newCount = data.testsCount + 1
-    const newAvg = ((data.avgScore * data.testsCount) + score) / newCount
-    await updateDoc(lbRef, {
-      testsCount: increment(1),
-      avgScore: parseFloat(newAvg.toFixed(1)),
-      lastPlayed: serverTimestamp(),
-    })
-  }
-  // Note: leaderboard doc is created on first result save via Cloud Function
-  // (see firestore.rules and the seed script)
+    if (!lbSnap.exists()) {
+      tx.set(lbRef, {
+        userId, userName,
+        testsCompleted: 1,
+        totalCorrect: correct,
+        totalQuestions: total,
+        avgScore: parseFloat(((correct / total) * 40).toFixed(1)),
+        avgBand: band,
+        bestBand: band,
+        bestScore: correct,
+        lastPlayed: serverTimestamp(),
+      })
+    } else {
+      const d = lbSnap.data()
+      const newCount  = d.testsCompleted + 1
+      const newCorr   = d.totalCorrect + correct
+      const newTotal  = d.totalQuestions + total
+      const newAvg    = parseFloat(((newCorr / newTotal) * 40).toFixed(1))
+      const newBest   = correct > d.bestScore ? correct : d.bestScore
+      const newBestBand = parseFloat(band) > parseFloat(d.bestBand || 0)
+        ? band : d.bestBand
+
+      tx.update(lbRef, {
+        testsCompleted:  newCount,
+        totalCorrect:    newCorr,
+        totalQuestions:  newTotal,
+        avgScore:        newAvg,
+        avgBand:         calcBand(newAvg),
+        bestBand:        newBestBand,
+        bestScore:       newBest,
+        lastPlayed:      serverTimestamp(),
+      })
+    }
+  })
 }
 
 // Fetch completed test IDs for a user
-export async function fetchUserResults(userId) {
+export async function fetchUserCompletedTests(userId) {
   const snap = await getDocs(
     query(collection(db, 'results'), where('userId', '==', userId))
   )
   return snap.docs.map(d => d.data().testId)
 }
 
-// ─── LEADERBOARD ─────────────────────────────────────
+// Fetch user's best score per test
+export async function fetchUserBestScores(userId) {
+  const snap = await getDocs(
+    query(collection(db, 'results'), where('userId', '==', userId))
+  )
+  const best = {}
+  snap.docs.forEach(d => {
+    const data = d.data()
+    if (!best[data.testId] || data.correct > best[data.testId].correct) {
+      best[data.testId] = { correct: data.correct, total: data.total, band: data.band }
+    }
+  })
+  return best
+}
 
-// Fetch top 10 leaderboard entries
+// ─────────────────────────────────────────────────────────
+//  LEADERBOARD
+// ─────────────────────────────────────────────────────────
+
 export async function fetchLeaderboard() {
   const snap = await getDocs(
     query(collection(db, 'leaderboard'), orderBy('avgScore', 'desc'), limit(10))
   )
-  return snap.docs.map((d, i) => ({ rank: i + 1, docId: d.id, ...d.data() }))
+  return snap.docs.map((d, i) => ({ rank: i + 1, ...d.data() }))
 }
 
-// ─── CONTACT ─────────────────────────────────────────
+export async function fetchUserRank(userId) {
+  const userSnap = await getDoc(doc(db, 'leaderboard', userId))
+  if (!userSnap.exists()) return null
+
+  const userAvg = userSnap.data().avgScore
+  const higherSnap = await getDocs(
+    query(collection(db, 'leaderboard'), where('avgScore', '>', userAvg))
+  )
+  return { rank: higherSnap.size + 1, ...userSnap.data() }
+}
+
+// ─────────────────────────────────────────────────────────
+//  CONTACT
+// ─────────────────────────────────────────────────────────
 
 export async function sendContactMessage(name, email, subject, message) {
   await addDoc(collection(db, 'contactMessages'), {
@@ -100,4 +167,21 @@ export async function sendContactMessage(name, email, subject, message) {
     sentAt: serverTimestamp(),
     read: false,
   })
+}
+
+// ─────────────────────────────────────────────────────────
+//  HELPER
+// ─────────────────────────────────────────────────────────
+
+export function calcBand(correct) {
+  if (correct >= 39) return '9.0'
+  if (correct >= 37) return '8.5'
+  if (correct >= 35) return '8.0'
+  if (correct >= 33) return '7.5'
+  if (correct >= 30) return '7.0'
+  if (correct >= 27) return '6.5'
+  if (correct >= 23) return '6.0'
+  if (correct >= 20) return '5.5'
+  if (correct >= 16) return '5.0'
+  return '4.5'
 }
