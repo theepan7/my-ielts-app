@@ -1,7 +1,3 @@
-Authmodal · JSX
-Copy
-
-// src/components/AuthModal.jsx
 import { useState } from 'react'
 import { useAuth } from '../context/AuthContext'
  
