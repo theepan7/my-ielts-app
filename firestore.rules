@@ -1,0 +1,41 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Tests are public read, admin write only
+    match /tests/{testId} {
+      allow read: if true;
+      allow write: if false;
+
+      match /sections/{secId} {
+        allow read: if true;
+        allow write: if false;
+
+        match /questions/{qId} {
+          allow read: if true;
+          allow write: if false;
+        }
+      }
+    }
+
+    // Results: users can create their own, read their own
+    match /results/{resultId} {
+      allow read:   if request.auth != null && resource.data.userId == request.auth.uid;
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if false;
+    }
+
+    // Leaderboard: public read, users update their own entry
+    match /leaderboard/{userId} {
+      allow read: if true;
+      allow create: if request.auth != null && request.auth.uid == userId;
+      allow update: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Contact messages: anyone can create, no one can read via client
+    match /contactMessages/{msgId} {
+      allow create: if true;
+      allow read, update, delete: if false;
+    }
+  }
+}
