@@ -107,15 +107,54 @@ export default function TestPage({ showToast }) {
   }
 
   async function handleFinish(auto = false) {
+    // 1. Prevent double-clicks
+    if (saving) return;
     if (!auto && !window.confirm("Finish and submit test?")) return;
+
+    setSaving(true);
+    clearInterval(timerRef.current);
+
+    // 2. Calculate Stats immediately
     const { correct, total } = calculateScore();
     const band = calcBand(correct);
+    
+    // 3. Fix: Calculate time taken precisely
+    const timeTakenSeconds = Math.round((Date.now() - startTime.current) / 1000);
+
+    const resultData = {
+      test,
+      answers,
+      correct,
+      total,
+      band,
+      elapsed: timeTakenSeconds, // This sends the time to the result page
+      testId,
+      testTitle: test?.title
+    };
+
+    // 4. Firebase Save
     if (user) {
-      setSaving(true);
-      await saveResult(user.uid, user.email, testId, test.id, correct, total, band);
-      setSaving(false);
+      try {
+        // We "await" the save, but we wrap it to ensure navigation still happens
+        await saveResult(
+          user.uid, 
+          user.email, 
+          testId, 
+          test.id, 
+          correct, 
+          total, 
+          band
+        );
+        showToast('Result saved to your profile! ✓', 'success');
+      } catch (err) {
+        console.error("Firebase Save Error:", err);
+        showToast('Score calculated, but failed to save to cloud.', 'error');
+      }
     }
-    navigate('/result', { state: { test, answers, correct, total, band } });
+
+    // 5. Navigate regardless of save success
+    setSaving(false);
+    navigate('/result', { state: resultData });
   }
 
   if (loading) return <div className="fixed inset-0 bg-white z-[100] flex items-center justify-center font-bold">Loading Test...</div>;
