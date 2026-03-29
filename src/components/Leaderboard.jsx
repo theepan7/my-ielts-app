@@ -1,62 +1,181 @@
+// src/components/Leaderboard.jsx
 import { useEffect, useState } from 'react'
-import { fetchLeaderboard } from '../firebase/services'
+import { useAuth }             from '../context/AuthContext'
+import { fetchLeaderboard, fetchUserRank } from '../firebase/services'
 
-const AVATAR_COLORS = ['#7c3aed','#2563eb','#0891b2','#d97706','#dc2626','#059669','#be185d','#0891b2','#65a30d','#7c3aed']
+const AV_COLORS = [
+  '#7c3aed','#2563eb','#0891b2','#d97706','#dc2626',
+  '#059669','#be185d','#0ea5e9','#65a30d','#7c3aed'
+]
 
 export default function Leaderboard() {
-  const [entries, setEntries] = useState([])
-  const [loading, setLoading] = useState(true)
+  const { user }                = useAuth()
+  const [entries,  setEntries]  = useState([])
+  const [userRank, setUserRank] = useState(null)
+  const [loading,  setLoading]  = useState(true)
+
+  async function load() {
+    try {
+      const [lb, ur] = await Promise.all([
+        fetchLeaderboard(),
+        user ? fetchUserRank(user.uid) : Promise.resolve(null),
+      ])
+      setEntries(lb)
+      setUserRank(ur)
+    } catch (e) {
+      console.error(e)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   useEffect(() => {
-    fetchLeaderboard()
-      .then(setEntries)
-      .catch(() => setEntries([]))
-      .finally(() => setLoading(false))
-  }, [])
+    load()
+    // Auto-refresh every 60 seconds
+    const interval = setInterval(load, 60000)
+    return () => clearInterval(interval)
+  }, [user])
 
-  const rankLabel = r => r === 1 ? '👑' : r === 2 ? '🥈' : r === 3 ? '🥉' : r
+  const rankIcon = r => r === 1 ? '👑' : r === 2 ? '🥈' : r === 3 ? '🥉' : r
+  const userInTop10 = user && entries.some(e => e.userId === user.uid)
+
+  function LeaderboardRow({ e, i, isMe }) {
+    return (
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 8,
+        padding: '8px 9px', borderRadius: 8,
+        background: isMe
+          ? '#eff4ff'
+          : i === 0
+            ? 'linear-gradient(135deg,#fffbeb,#fef3c7)'
+            : '#f8fafc',
+        border: `1px solid ${isMe ? '#93c5fd' : i === 0 ? '#fde68a' : 'transparent'}`,
+        transition: 'all .16s',
+      }}>
+        {/* Rank */}
+        <span style={{
+          fontSize: 11, fontWeight: 700,
+          minWidth: 18, textAlign: 'center',
+          color: i === 0 ? '#d97706' : i === 1 ? '#64748b' : i === 2 ? '#92400e' : '#94a3b8',
+        }}>
+          {rankIcon(e.rank)}
+        </span>
+
+        {/* Avatar */}
+        <div style={{
+          width: 26, height: 26, borderRadius: '50%', flexShrink: 0,
+          background: AV_COLORS[i % AV_COLORS.length],
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: 9, fontWeight: 700, color: '#fff',
+        }}>
+          {(e.userName || 'U').slice(0, 2).toUpperCase()}
+        </div>
+
+        {/* Name only — no test count */}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{
+            fontSize: 12.5, fontWeight: 600, color: '#0f172a',
+            whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+          }}>
+            {e.userName}
+            {isMe && (
+              <span style={{ color: '#2563eb', fontSize: 10, fontWeight: 500, marginLeft: 4 }}>
+                (you)
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Avg band score */}
+        <div style={{ textAlign: 'right', flexShrink: 0 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: '#2563eb' }}>
+            {e.avgBand || '—'}
+          </div>
+          <div style={{ fontSize: 9, color: '#94a3b8' }}>avg band</div>
+        </div>
+      </div>
+    )
+  }
 
   return (
-    <div className="card p-4">
-      <h3 className="text-[10.5px] font-bold text-slate-400 uppercase tracking-widest mb-3">🏆 Global Leaderboard</h3>
+    <div style={{
+      background: '#fff', border: '1px solid #e2e8f0',
+      borderRadius: 12, padding: 16,
+      boxShadow: '0 1px 3px rgba(15,23,42,.07)',
+    }}>
+      {/* Header */}
+      <div style={{
+        display: 'flex', justifyContent: 'space-between',
+        alignItems: 'center', marginBottom: 12,
+      }}>
+        <span style={{
+          fontSize: 10.5, fontWeight: 700, textTransform: 'uppercase',
+          letterSpacing: '.07em', color: '#94a3b8',
+        }}>
+          🏆 Global Leaderboard
+        </span>
+        <button
+          onClick={load}
+          style={{
+            background: 'none', border: 'none', cursor: 'pointer',
+            fontSize: 11, color: '#2563eb', fontWeight: 600,
+            fontFamily: 'Plus Jakarta Sans, sans-serif', padding: '2px 6px',
+          }}
+        >
+          ↻ Refresh
+        </button>
+      </div>
 
+      {/* Entries */}
       {loading ? (
-        <div className="space-y-2">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           {[...Array(5)].map((_, i) => (
-            <div key={i} className="h-10 bg-slate-100 rounded-lg animate-pulse" />
+            <div key={i} style={{
+              height: 42, background: '#f1f5f9', borderRadius: 8,
+              animation: 'pulse 1.5s infinite',
+            }} />
           ))}
         </div>
+      ) : entries.length === 0 ? (
+        <p style={{
+          fontSize: 12, color: '#94a3b8',
+          textAlign: 'center', padding: '16px 0',
+        }}>
+          No scores yet — complete a test to be first! 🎯
+        </p>
       ) : (
-        <div className="space-y-1.5">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
           {entries.map((e, i) => (
-            <div key={e.docId || i} className={`flex items-center gap-2 px-2 py-2 rounded-lg border transition-all
-              ${i === 0 ? 'bg-amber-50 border-amber-200' : 'bg-slate-50 border-transparent hover:border-slate-200'}`}>
-              <span className="text-xs font-bold min-w-[18px] text-center text-slate-400">{rankLabel(e.rank)}</span>
-              <div
-                className="w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-bold text-white flex-shrink-0"
-                style={{ background: AVATAR_COLORS[i % AVATAR_COLORS.length] }}
-              >
-                {(e.name || 'U').slice(0, 2).toUpperCase()}
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-xs font-semibold text-slate-800 truncate">{e.name}</p>
-                <p className="text-[10px] text-slate-400">{e.testsCount} tests</p>
-              </div>
-              <div className="text-right">
-                <p className="text-xs font-bold text-blue-600">{e.avgScore}</p>
-                <p className="text-[9px] text-slate-400">avg</p>
-              </div>
-            </div>
+            <LeaderboardRow
+              key={e.userId || i}
+              e={e} i={i}
+              isMe={user && e.userId === user.uid}
+            />
           ))}
-          {entries.length === 0 && (
-            <p className="text-xs text-slate-400 text-center py-4">No results yet — be first!</p>
+
+          {/* Show current user's rank if not in top 10 */}
+          {user && !userInTop10 && userRank && (
+            <>
+              <div style={{ textAlign: 'center', color: '#94a3b8', fontSize: 11, padding: '2px 0' }}>
+                · · ·
+              </div>
+              <LeaderboardRow
+                e={userRank}
+                i={userRank.rank - 1}
+                isMe={true}
+              />
+            </>
           )}
         </div>
       )}
 
-      <p className="text-[10px] text-slate-400 text-center mt-3 pt-3 border-t border-slate-100">
-        Top 10 · All-time · Updated daily
-      </p>
+      {/* Footer */}
+      <div style={{
+        borderTop: '1px solid #e2e8f0', marginTop: 10, paddingTop: 10,
+        textAlign: 'center', fontSize: 10, color: '#94a3b8',
+      }}>
+        Top 10 · Ranked by average band score · Updates after each test
+      </div>
     </div>
   )
 }
