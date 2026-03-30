@@ -47,9 +47,7 @@ function AudioPlayer({ audioUrl }) {
       <span style={{ fontSize: 16 }}>🔊</span>
       <div style={{ flex: 1 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          {/* −10s */}
           <IcoBtn onClick={() => skip(-10)}>↺</IcoBtn>
-          {/* Play/Pause */}
           <button onClick={togglePlay} disabled={error} style={{
             width: 32, height: 32, borderRadius: '50%',
             background: '#fff', border: 'none', color: '#1d4ed8',
@@ -59,9 +57,7 @@ function AudioPlayer({ audioUrl }) {
           }}>
             {playing ? '⏸' : '▶'}
           </button>
-          {/* +10s */}
           <IcoBtn onClick={() => skip(10)}>↻</IcoBtn>
-          {/* Progress */}
           <div onClick={seek} style={{
             flex: 1, height: 4, background: 'rgba(255,255,255,.25)',
             borderRadius: 2, cursor: 'pointer',
@@ -71,7 +67,6 @@ function AudioPlayer({ audioUrl }) {
               height: '100%', background: '#fff', borderRadius: 2, transition: 'width .3s',
             }} />
           </div>
-          {/* Time */}
           <span style={{ color: 'rgba(255,255,255,.8)', fontSize: 10.5, fontFamily: 'monospace', minWidth: 76, textAlign: 'right' }}>
             {fmt(current)} / {fmt(duration)}
           </span>
@@ -115,7 +110,6 @@ function QuestionTracker({ sections, answers, partIdx, onJump }) {
       padding: '14px 16px', marginTop: 14,
       boxShadow: '0 1px 3px rgba(15,23,42,.06)',
     }}>
-      {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10, flexWrap: 'wrap', gap: 6 }}>
         <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.06em', color: '#94a3b8' }}>
           Part {partIdx + 1} — Question Tracker
@@ -125,8 +119,6 @@ function QuestionTracker({ sections, answers, partIdx, onJump }) {
           <Legend color="#f1f5f9" border="#cbd5e1" label={`Unanswered (${unansweredCount})`} textColor="#94a3b8" />
         </div>
       </div>
-
-      {/* Number grid — click to jump to question */}
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
         {qNos.map(n => {
           const done = answers[n] !== undefined && answers[n] !== ''
@@ -151,8 +143,6 @@ function QuestionTracker({ sections, answers, partIdx, onJump }) {
           )
         })}
       </div>
-
-      {/* Progress bar */}
       <div style={{ marginTop: 10 }}>
         <div style={{ height: 4, background: '#f1f5f9', borderRadius: 2 }}>
           <div style={{
@@ -182,7 +172,6 @@ function Legend({ color, border, label, textColor }) {
   )
 }
 
-// Extract all answerable question numbers from sections
 function extractQNos(sections) {
   const qNos = []
   sections.forEach(sec => {
@@ -202,7 +191,6 @@ function extractQNos(sections) {
   return qNos
 }
 
-// Extract qNos from a full part (all sections)
 function extractPartQNos(part) {
   return extractQNos(part.sections || [])
 }
@@ -223,8 +211,13 @@ export default function TestPage({ showToast }) {
   const [timeLeft, setTimeLeft] = useState(30 * 60)
   const [saving,   setSaving]   = useState(false)
 
-  const timerRef  = useRef(null)
-  const startTime = useRef(Date.now())
+  // Track whether the user has scrolled past the title row
+  const [scrolled, setScrolled] = useState(false)
+
+  const timerRef     = useRef(null)
+  const startTime    = useRef(Date.now())
+  const headerRef    = useRef(null)   // ref to the full sticky header
+  const titleRowRef  = useRef(null)   // ref to just the title+timer row
 
   // ── Hide footer while test is open ─────────────────────
   useEffect(() => {
@@ -233,7 +226,18 @@ export default function TestPage({ showToast }) {
     return () => { if (footer) footer.style.display = '' }
   }, [])
 
-  // ── Fetch test from Firestore ───────────────────────────
+  // ── Detect scroll to collapse title row ────────────────
+  useEffect(() => {
+    function onScroll() {
+      // Collapse title row once user scrolls more than its height
+      const titleHeight = titleRowRef.current?.offsetHeight || 56
+      setScrolled(window.scrollY > titleHeight)
+    }
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [])
+
+  // ── Fetch test ──────────────────────────────────────────
   useEffect(() => {
     setLoading(true)
     fetchTestWithQuestions(testId)
@@ -256,7 +260,6 @@ export default function TestPage({ showToast }) {
     setAnswers(prev => ({ ...prev, [qNo]: value }))
   }
 
-  // ── Jump to a question by ID ────────────────────────────
   function jumpToQuestion(qNo) {
     const el = document.getElementById(`q-${qNo}`)
     if (el) {
@@ -267,7 +270,6 @@ export default function TestPage({ showToast }) {
     }
   }
 
-  // ── Score ───────────────────────────────────────────────
   function calculateScore() {
     if (!test) return { correct: 0, total: 0, partScores: {} }
     let totalCorrect = 0, totalQs = 0
@@ -309,7 +311,6 @@ export default function TestPage({ showToast }) {
     return fields
   }
 
-  // ── Finish ──────────────────────────────────────────────
   async function handleFinish(autoSubmit = false) {
     if (!autoSubmit) {
       const { total } = calculateScore()
@@ -373,58 +374,70 @@ export default function TestPage({ showToast }) {
     <div style={{ background: '#f4f6fb', minHeight: '100vh', paddingBottom: 60 }}>
 
       {/* ════ STICKY HEADER ════════════════════════════════ */}
-      <div style={{
-        position: 'sticky', top: 0, zIndex: 100,
-        background: '#fff', borderBottom: '1px solid #e2e8f0',
-        boxShadow: '0 2px 8px rgba(15,23,42,.08)',
-      }}>
-
-        {/* Row 1 — Title + Timer + Exit */}
-        <div style={{
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          padding: '10px 20px', flexWrap: 'wrap', gap: 8,
-        }}>
-          <div>
-            <div style={{ fontFamily: 'Lora, serif', fontWeight: 600, fontSize: '1rem', color: '#0f172a' }}>
-              {test.title}
+      <div
+        ref={headerRef}
+        style={{
+          position: 'sticky', top: 0, zIndex: 100,
+          background: '#fff', borderBottom: '1px solid #e2e8f0',
+          boxShadow: '0 2px 8px rgba(15,23,42,.08)',
+        }}
+      >
+        {/* ── Row 1: Title + Timer + Exit — hides on scroll ── */}
+        <div
+          ref={titleRowRef}
+          style={{
+            overflow: 'hidden',
+            maxHeight: scrolled ? 0 : 200,           // collapse to 0 when scrolled
+            opacity:   scrolled ? 0 : 1,
+            transition: 'max-height .3s ease, opacity .25s ease',
+          }}
+        >
+          <div style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            padding: '10px 20px', flexWrap: 'wrap', gap: 8,
+          }}>
+            <div>
+              <div style={{ fontFamily: 'Lora, serif', fontWeight: 600, fontSize: '1rem', color: '#0f172a' }}>
+                {test.title}
+              </div>
+              <div style={{ fontSize: 11.5, color: '#94a3b8', marginTop: 1 }}>
+                {test.category === 'academic' ? 'Academic' : 'General Training'}
+                &nbsp;·&nbsp; 4 Parts &nbsp;·&nbsp; {runTotal} Questions
+                {answered > 0 && (
+                  <span style={{ color: '#059669', fontWeight: 600, marginLeft: 8 }}>
+                    · {answered} answered
+                  </span>
+                )}
+              </div>
             </div>
-            <div style={{ fontSize: 11.5, color: '#94a3b8', marginTop: 1 }}>
-              {test.category === 'academic' ? 'Academic' : 'General Training'}
-              &nbsp;·&nbsp; 4 Parts &nbsp;·&nbsp; {runTotal} Questions
-              {answered > 0 && (
-                <span style={{ color: '#059669', fontWeight: 600, marginLeft: 8 }}>
-                  · {answered} answered
-                </span>
-              )}
-            </div>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            {/* Timer */}
-            <div style={{
-              display: 'flex', alignItems: 'center', gap: 6,
-              background: timeLeft < 120 ? '#fef2f2' : '#f1f5f9',
-              border: `1px solid ${timeLeft < 120 ? '#fca5a5' : '#e2e8f0'}`,
-              padding: '6px 14px', borderRadius: 8,
-            }}>
-              <span style={{ color: '#94a3b8', fontSize: 13 }}>⏱</span>
-              <span style={{
-                fontFamily: 'Lora, serif', fontWeight: 700, fontSize: '1.2rem',
-                color: timeLeft < 120 ? '#dc2626' : '#2563eb',
-                fontVariantNumeric: 'tabular-nums',
-                animation: timeLeft < 120 ? 'blink 1s infinite' : 'none',
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              {/* Timer */}
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: 6,
+                background: timeLeft < 120 ? '#fef2f2' : '#f1f5f9',
+                border: `1px solid ${timeLeft < 120 ? '#fca5a5' : '#e2e8f0'}`,
+                padding: '6px 14px', borderRadius: 8,
               }}>
-                {fmt(timeLeft)}
-              </span>
+                <span style={{ color: '#94a3b8', fontSize: 13 }}>⏱</span>
+                <span style={{
+                  fontFamily: 'Lora, serif', fontWeight: 700, fontSize: '1.2rem',
+                  color: timeLeft < 120 ? '#dc2626' : '#2563eb',
+                  fontVariantNumeric: 'tabular-nums',
+                  animation: timeLeft < 120 ? 'blink 1s infinite' : 'none',
+                }}>
+                  {fmt(timeLeft)}
+                </span>
+              </div>
+              {/* Exit */}
+              <button onClick={() => { if (window.confirm('Exit test? Your progress will be lost.')) { clearInterval(timerRef.current); navigate('/') } }}
+                style={{ padding: '7px 14px', borderRadius: 7, background: 'transparent', border: '1px solid #cbd5e1', color: '#475569', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', fontFamily: 'Plus Jakarta Sans, sans-serif' }}>
+                ← Exit
+              </button>
             </div>
-            {/* Exit */}
-            <button onClick={() => { if (window.confirm('Exit test? Your progress will be lost.')) { clearInterval(timerRef.current); navigate('/') } }}
-              style={{ padding: '7px 14px', borderRadius: 7, background: 'transparent', border: '1px solid #cbd5e1', color: '#475569', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', fontFamily: 'Plus Jakarta Sans, sans-serif' }}>
-              ← Exit
-            </button>
           </div>
         </div>
 
-        {/* Row 2 — Single Audio Player */}
+        {/* ── Row 2: Audio Player — always visible ── */}
         {audioUrl
           ? <AudioPlayer audioUrl={audioUrl} />
           : (
@@ -434,7 +447,7 @@ export default function TestPage({ showToast }) {
           )
         }
 
-        {/* Row 3 — Part tabs */}
+        {/* ── Row 3: Part tabs + inline part label — always visible ── */}
         <div style={{ display: 'flex', borderTop: '1px solid #e2e8f0', overflowX: 'auto' }}>
           {(test.parts || []).map((p, i) => {
             const pQNos     = extractPartQNos(p)
@@ -465,13 +478,39 @@ export default function TestPage({ showToast }) {
             )
           })}
         </div>
+
+        {/* ── Compact part label strip — appears only when scrolled ── */}
+        {scrolled && currentPart && (
+          <div style={{
+            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+            padding: '5px 20px',
+            background: '#f8fafc', borderTop: '1px solid #e2e8f0',
+            animation: 'slideDown .2s ease',
+          }}>
+            <span style={{ fontWeight: 700, color: '#0f172a', fontSize: 12.5 }}>
+              {currentPart.title || `Part ${currentPart.partNo}`}
+              <span style={{ color: '#94a3b8', fontWeight: 400, marginLeft: 8, fontSize: 12 }}>
+                Q{partIdx * 10 + 1}–{(partIdx + 1) * 10}
+              </span>
+            </span>
+            {/* Mini timer shown when title row is hidden */}
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 5,
+              fontSize: 12, fontWeight: 700,
+              color: timeLeft < 120 ? '#dc2626' : '#2563eb',
+              animation: timeLeft < 120 ? 'blink 1s infinite' : 'none',
+            }}>
+              ⏱ {fmt(timeLeft)}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ════ SCROLLABLE QUESTIONS ════════════════════════ */}
       <div style={{ maxWidth: 800, margin: '0 auto', padding: '18px 20px 0' }}>
 
-        {/* Part label bar */}
-        {currentPart && (
+        {/* Part label bar — visible only when NOT scrolled (at top of page) */}
+        {!scrolled && currentPart && (
           <div style={{
             background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10,
             padding: '10px 16px', marginBottom: 14,
@@ -495,7 +534,7 @@ export default function TestPage({ showToast }) {
           </div>
         )}
 
-        {/* Questions — wrapped with id for jump */}
+        {/* Questions */}
         {(currentPart?.sections || []).map(section => (
           <div key={section.id}>
             <QuestionRenderer
@@ -507,7 +546,7 @@ export default function TestPage({ showToast }) {
           </div>
         ))}
 
-        {/* ── Question Number Tracker ── */}
+        {/* Question Number Tracker */}
         <QuestionTracker
           sections={currentPart?.sections || []}
           answers={answers}
@@ -515,7 +554,7 @@ export default function TestPage({ showToast }) {
           onJump={jumpToQuestion}
         />
 
-        {/* ── Navigation Buttons ── */}
+        {/* Navigation Buttons */}
         <div style={{
           background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10,
           padding: '14px 18px', marginTop: 12,
@@ -523,7 +562,6 @@ export default function TestPage({ showToast }) {
           alignItems: 'center', flexWrap: 'wrap', gap: 10,
           boxShadow: '0 1px 3px rgba(15,23,42,.06)',
         }}>
-          {/* Answered count */}
           <p style={{ fontSize: 13, color: '#475569', margin: 0 }}>
             Total answered:&nbsp;
             <strong style={{ color: '#2563eb' }}>{answered}</strong>
@@ -531,7 +569,6 @@ export default function TestPage({ showToast }) {
           </p>
 
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            {/* Previous — Parts 2, 3, 4 */}
             {!isFirstPart && (
               <button
                 onClick={() => { setPartIdx(i => i - 1); window.scrollTo({ top: 0, behavior: 'smooth' }) }}
@@ -545,8 +582,6 @@ export default function TestPage({ showToast }) {
                 ← Previous Part
               </button>
             )}
-
-            {/* Next Part — Parts 1, 2, 3 only */}
             {!isLastPart && (
               <button
                 onClick={() => { setPartIdx(i => i + 1); window.scrollTo({ top: 0, behavior: 'smooth' }) }}
@@ -560,8 +595,6 @@ export default function TestPage({ showToast }) {
                 Next Part →
               </button>
             )}
-
-            {/* Finish & See Results — Part 4 ONLY */}
             {isLastPart && (
               <button
                 onClick={() => handleFinish(false)}
@@ -586,7 +619,8 @@ export default function TestPage({ showToast }) {
       </div>
 
       <style>{`
-        @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.4} }
+        @keyframes blink    { 0%,100%{opacity:1} 50%{opacity:.4} }
+        @keyframes slideDown { from{opacity:0;transform:translateY(-4px)} to{opacity:1;transform:translateY(0)} }
       `}</style>
     </div>
   )
