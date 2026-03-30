@@ -104,13 +104,13 @@ export default function HomePage({ onAuthClick, showToast }) {
             color: 'rgba(255,255,255,.85)', borderRadius: 20, padding: '4px 14px',
             fontSize: 11.5, fontWeight: 500, marginBottom: 14,
           }}>
-            ✦ 100 Full-Length Practice Tests
+            ✦ 100+ Full-Length Practice Tests
           </div>
           <h1 style={{
             fontFamily: 'Lora, serif', fontSize: '2.1rem', fontWeight: 600,
             color: '#fff', lineHeight: 1.2, marginBottom: 8,
           }}>
-            Master IELTS Listening
+            IELTS Planner Listening
           </h1>
           <p style={{ color: 'rgba(255,255,255,.72)', fontSize: 14, marginBottom: 24 }}>
             Authentic recordings · Real exam questions · Instant band score results
