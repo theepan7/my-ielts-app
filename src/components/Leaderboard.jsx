@@ -181,16 +181,7 @@ export default function Leaderboard({ onAuthClick }) {
           borderRadius: 12,
           textAlign: 'center',
         }}>
-          {/* Lock icon */}
-          <div style={{
-            width: 44, height: 44, borderRadius: '50%',
-            background: 'linear-gradient(135deg,#2563eb,#7c3aed)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 20, boxShadow: '0 4px 14px rgba(37,99,235,.3)',
-          }}>
-            🔒
-          </div>
-
+         
           <div>
             <div style={{
               fontFamily: 'Lora, serif', fontWeight: 600,
