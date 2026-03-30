@@ -206,10 +206,36 @@ export default function Navbar({ onAuthClick, onContactClick }) {
 
         {/* Nav links */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+
+          {/* ── Home button ── */}
+          <button
+            onClick={() => { navigate('/'); window.location.reload() }}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 5,
+              padding: '7px 14px', borderRadius: 7,
+              background: 'transparent', border: 'none',
+              color: '#475569', fontSize: 13, fontWeight: 500,
+              cursor: 'pointer', fontFamily: 'Plus Jakarta Sans, sans-serif',
+              transition: 'all .16s',
+            }}
+            onMouseEnter={e => e.currentTarget.style.backgroundColor = '#f8fafc'}
+            onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
+          >
+            {/* Home icon */}
+            <svg
+              width="13" height="13" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"
+            >
+              <path d="M3 9.5L12 3l9 6.5V20a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9.5z" />
+              <polyline points="9 21 9 12 15 12 15 21" />
+            </svg>
+            Home
+          </button>
+
           <Dropdown label="Practice"  icon="📝" items={practiceItems}  />
           <Dropdown label="Resources" icon="📖" items={resourceItems}  />
 
-                {/* Contact — no dropdown */}
+          {/* Contact — no dropdown */}
           <button
             onClick={onContactClick}
             style={{
