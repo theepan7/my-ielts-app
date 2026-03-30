@@ -112,7 +112,7 @@ export default function Navbar({ onAuthClick, onContactClick }) {
       desc:    'Browse the complete test library',
       icon:    '📋',
       iconBg:  '#eff4ff',
-      action: () => navigate('/band-score-guide'), 
+      action:  () => navigate('/'),
     },
     { divider: true },
     {
@@ -137,7 +137,7 @@ export default function Navbar({ onAuthClick, onContactClick }) {
       desc:   'Understand your IELTS band',
       icon:   '🎯',
       iconBg: '#ecfdf5',
-      action: () => {},
+      action: () => navigate('/band-score-guide'), 
     },
     {
       label:  'Listening Tips',
