@@ -202,39 +202,7 @@ export default function Leaderboard({ onAuthClick }) {
               Sign up free to track your progress<br />and compete on the global leaderboard.
             </div>
           </div>
-
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button
-              onClick={() => onAuthClick?.('signup')}
-              style={{
-                padding: '8px 18px', borderRadius: 8, border: 'none',
-                background: 'linear-gradient(135deg,#2563eb,#7c3aed)',
-                color: '#fff', fontSize: 12.5, fontWeight: 700,
-                cursor: 'pointer', fontFamily: 'Plus Jakarta Sans, sans-serif',
-                boxShadow: '0 4px 12px rgba(37,99,235,.3)',
-                transition: 'all .16s',
-              }}
-              onMouseEnter={e => e.currentTarget.style.opacity = '.88'}
-              onMouseLeave={e => e.currentTarget.style.opacity = '1'}
-            >
-              Sign Up Free
-            </button>
-            <button
-              onClick={() => onAuthClick?.('login')}
-              style={{
-                padding: '8px 18px', borderRadius: 8,
-                background: 'transparent',
-                border: '1.5px solid #e2e8f0',
-                color: '#475569', fontSize: 12.5, fontWeight: 600,
-                cursor: 'pointer', fontFamily: 'Plus Jakarta Sans, sans-serif',
-                transition: 'all .16s',
-              }}
-              onMouseEnter={e => { e.currentTarget.style.borderColor = '#2563eb'; e.currentTarget.style.color = '#2563eb' }}
-              onMouseLeave={e => { e.currentTarget.style.borderColor = '#e2e8f0'; e.currentTarget.style.color = '#475569' }}
-            >
-              Sign In
-            </button>
-          </div>
+       
         </div>
       )}
 
