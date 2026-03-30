@@ -92,40 +92,90 @@ export default function HomePage({ onAuthClick, showToast }) {
     <div style={{ background: '#f4f6fb', minHeight: '100vh' }}>
 
       {/* ── HERO ── */}
-      <div style={{
-        background: 'linear-gradient(135deg,#1e3a8a,#1d4ed8 55%,#4338ca)',
-        padding: '48px 28px 44px', textAlign: 'center', position: 'relative', overflow: 'hidden',
-      }}>
-        <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse at 25% 60%,rgba(255,255,255,.06),transparent 55%)' }} />
-        <div style={{ maxWidth: 560, margin: '0 auto', position: 'relative', zIndex: 1 }}>
+         <div style={{
+  background: 'linear-gradient(135deg,#1e3a8a,#1d4ed8 55%,#4338ca)',
+  padding: '28px 20px 26px',
+  textAlign: 'center',
+  position: 'relative',
+  overflow: 'hidden',
+}}>
+  <div style={{
+    position: 'absolute',
+    inset: 0,
+    background: 'radial-gradient(ellipse at 25% 60%,rgba(255,255,255,.05),transparent 60%)'
+  }} />
+
+  <div style={{ maxWidth: 460, margin: '0 auto', position: 'relative', zIndex: 1 }}>
+
+    {/* Badge */}
+    <div style={{
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: 6,
+      background: 'rgba(255,255,255,.12)',
+      border: '1px solid rgba(255,255,255,.18)',
+      color: 'rgba(255,255,255,.85)',
+      borderRadius: 20,
+      padding: '3px 12px',
+      fontSize: 11,
+      fontWeight: 500,
+      marginBottom: 10,
+    }}>
+      ✦ 100+ Practice Tests
+    </div>
+
+    {/* Title */}
+    <h1 style={{
+      fontFamily: 'Lora, serif',
+      fontSize: '1.6rem',
+      fontWeight: 600,
+      color: '#fff',
+      lineHeight: 1.25,
+      marginBottom: 6,
+    }}>
+      IELTS Listening
+    </h1>
+
+    {/* Subtitle */}
+    <p style={{
+      color: 'rgba(255,255,255,.7)',
+      fontSize: 13,
+      marginBottom: 16,
+    }}>
+      Real exam-style tests with instant results
+    </p>
+
+    {/* Stats (more compact) */}
+    <div style={{
+      display: 'flex',
+      justifyContent: 'center',
+      gap: 20,
+      flexWrap: 'wrap'
+    }}>
+      {[['100','Tests'],['4K+','Questions'],['9.0','Band']].map(([n, l]) => (
+        <div key={l} style={{ textAlign: 'center' }}>
           <div style={{
-            display: 'inline-flex', alignItems: 'center', gap: 6,
-            background: 'rgba(255,255,255,.12)', border: '1px solid rgba(255,255,255,.2)',
-            color: 'rgba(255,255,255,.85)', borderRadius: 20, padding: '4px 14px',
-            fontSize: 11.5, fontWeight: 500, marginBottom: 14,
+            fontFamily: 'Lora,serif',
+            fontSize: '1.1rem',
+            fontWeight: 700,
+            color: '#fff'
           }}>
-            ✦ 100+ Full-Length Practice Tests
+            {n}
           </div>
-          <h1 style={{
-            fontFamily: 'Lora, serif', fontSize: '2.1rem', fontWeight: 600,
-            color: '#fff', lineHeight: 1.2, marginBottom: 8,
+          <div style={{
+            fontSize: 10.5,
+            color: 'rgba(255,255,255,.6)',
+            marginTop: 1
           }}>
-            IELTS Planner Listening
-          </h1>
-          <p style={{ color: 'rgba(255,255,255,.72)', fontSize: 14, marginBottom: 24 }}>
-            Authentic recordings · Real exam questions · Instant band score results
-          </p>
-          <div style={{ display: 'flex', justifyContent: 'center', gap: 32, flexWrap: 'wrap' }}>
-            {[['100','Tests Available'],['4,000+','Questions'],['9.0','Max Band']].map(([n, l]) => (
-              <div key={l} style={{ textAlign: 'center' }}>
-                <div style={{ fontFamily: 'Lora,serif', fontSize: '1.4rem', fontWeight: 700, color: '#fff' }}>{n}</div>
-                <div style={{ fontSize: 11, color: 'rgba(255,255,255,.6)', marginTop: 2 }}>{l}</div>
-              </div>
-            ))}
+            {l}
           </div>
         </div>
-      </div>
+      ))}
+    </div>
 
+  </div>
+</div>
+    
       {/* ── MAIN CONTENT ── */}
       <div style={{
         maxWidth: 1240, margin: '0 auto', padding: '24px 20px',
