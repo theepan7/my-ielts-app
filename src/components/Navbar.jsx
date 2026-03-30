@@ -1,90 +1,320 @@
-import { Link, useNavigate, useLocation } from 'react-router-dom'
+// src/components/Navbar.jsx
+import { useState, useRef, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import { useState } from 'react'
 
+// ── Dropdown menu component ───────────────────────────────
+function Dropdown({ label, items, icon }) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef(null)
+
+  // Close when clicking outside
+  useEffect(() => {
+    function handle(e) {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false)
+    }
+    document.addEventListener('mousedown', handle)
+    return () => document.removeEventListener('mousedown', handle)
+  }, [])
+
+  return (
+    <div ref={ref} style={{ position: 'relative' }}>
+      <button
+        onClick={() => setOpen(o => !o)}
+        style={{
+          display: 'flex', alignItems: 'center', gap: 5,
+          padding: '7px 14px', borderRadius: 7,
+          background: 'transparent', border: 'none',
+          color: open ? '#2563eb' : '#475569',
+          fontSize: 13, fontWeight: 500, cursor: 'pointer',
+          fontFamily: 'Plus Jakarta Sans, sans-serif',
+          transition: 'all .16s',
+          backgroundColor: open ? '#eff4ff' : 'transparent',
+        }}
+        onMouseEnter={e => { if (!open) e.currentTarget.style.backgroundColor = '#f8fafc' }}
+        onMouseLeave={e => { if (!open) e.currentTarget.style.backgroundColor = 'transparent' }}
+      >
+        {icon && <span style={{ fontSize: 13 }}>{icon}</span>}
+        {label}
+        {/* Chevron */}
+        <svg
+          width="12" height="12" viewBox="0 0 24 24" fill="none"
+          stroke="currentColor" strokeWidth="2.5"
+          style={{ transition: 'transform .2s', transform: open ? 'rotate(180deg)' : 'rotate(0deg)' }}
+        >
+          <polyline points="6 9 12 15 18 9" />
+        </svg>
+      </button>
+
+      {/* Dropdown panel */}
+      {open && (
+        <div style={{
+          position: 'absolute', top: 'calc(100% + 6px)', left: 0,
+          background: '#fff', border: '1px solid #e2e8f0',
+          borderRadius: 10, boxShadow: '0 8px 24px rgba(15,23,42,.12)',
+          minWidth: 200, zIndex: 300, overflow: 'hidden',
+          animation: 'dropIn .15s ease',
+        }}>
+          {items.map((item, i) => (
+            item.divider
+              ? <div key={i} style={{ height: 1, background: '#f1f5f9', margin: '4px 0' }} />
+              : (
+                <button
+                  key={i}
+                  onClick={() => { item.action(); setOpen(false) }}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 9,
+                    width: '100%', padding: '10px 14px',
+                    background: 'none', border: 'none',
+                    textAlign: 'left', cursor: 'pointer',
+                    fontSize: 13, color: '#0f172a',
+                    fontFamily: 'Plus Jakarta Sans, sans-serif',
+                    transition: 'background .12s',
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'}
+                  onMouseLeave={e => e.currentTarget.style.background = 'none'}
+                >
+                  {item.icon && (
+                    <span style={{
+                      width: 28, height: 28, borderRadius: 7,
+                      background: item.iconBg || '#f1f5f9',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: 13, flexShrink: 0,
+                    }}>
+                      {item.icon}
+                    </span>
+                  )}
+                  <div>
+                    <div style={{ fontWeight: 500 }}>{item.label}</div>
+                    {item.desc && (
+                      <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 1 }}>
+                        {item.desc}
+                      </div>
+                    )}
+                  </div>
+                </button>
+              )
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Main Navbar ───────────────────────────────────────────
 export default function Navbar({ onAuthClick, onContactClick }) {
   const { user, logout } = useAuth()
-  const navigate = useNavigate()
-  const location = useLocation()
-  const [active, setActive] = useState('home')
+  const navigate         = useNavigate()
 
-  function handleNav(which) {
-    setActive(which)
-    if (which === 'contact') { onContactClick(); return }
-    if (which === 'home')     { navigate('/');             return }
-    if (which === 'academic') { navigate('/?cat=academic'); return }
-    if (which === 'general')  { navigate('/?cat=general');  return }
-  }
+  const practiceItems = [
+    {
+      label:   'All 100 Tests',
+      desc:    'Browse the complete test library',
+      icon:    '📋',
+      iconBg:  '#eff4ff',
+      action:  () => navigate('/'),
+    },
+    { divider: true },
+    {
+      label:   'Academic Tests',
+      desc:    'Tests 1–50',
+      icon:    '📚',
+      iconBg:  '#f5f3ff',
+      action:  () => navigate('/?cat=academic'),
+    },
+    {
+      label:   'General Training',
+      desc:    'Tests 51–100',
+      icon:    '📺',
+      iconBg:  '#ecfeff',
+      action:  () => navigate('/?cat=general'),
+    },
+  ]
 
-  const navLinks = [
-    { id: 'home',     label: 'Home',     icon: '🏠' },
-    { id: 'academic', label: 'Academic', icon: '📚' },
-    { id: 'general',  label: 'General',  icon: '📺' },
-    { id: 'contact',  label: 'Contact',  icon: '✉️'  },
+  const resourceItems = [
+    {
+      label:  'Band Score Guide',
+      desc:   'Understand your IELTS band',
+      icon:   '🎯',
+      iconBg: '#ecfdf5',
+      action: () => {},
+    },
+    {
+      label:  'Listening Tips',
+      desc:   'Strategies to improve your score',
+      icon:   '💡',
+      iconBg: '#fffbeb',
+      action: () => {},
+    },
+    {
+      label:  'Study Plans',
+      desc:   'Structured preparation schedules',
+      icon:   '📅',
+      iconBg: '#fef2f2',
+      action: () => {},
+    },
+    {
+      label:  'FAQ',
+      desc:   'Common questions answered',
+      icon:   '❓',
+      iconBg: '#f5f3ff',
+      action: () => {},
+    },
   ]
 
   return (
-    <nav className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-slate-200 shadow-sm">
-      <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between gap-4">
+    <>
+      <style>{`
+        @keyframes dropIn {
+          from { opacity: 0; transform: translateY(-6px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+      `}</style>
+
+      <nav style={{
+        position: 'sticky', top: 0, zIndex: 200, height: 62,
+        background: 'rgba(255,255,255,.96)',
+        backdropFilter: 'blur(12px)',
+        borderBottom: '1px solid #e2e8f0',
+        boxShadow: '0 1px 0 rgba(15,23,42,.04)',
+        display: 'flex', alignItems: 'center',
+        justifyContent: 'space-between', padding: '0 24px',
+      }}>
 
         {/* Logo */}
-        <Link to="/" className="flex items-center gap-2.5 no-underline">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-600 to-violet-600 flex items-center justify-center text-sm flex-shrink-0">
+        <div
+          onClick={() => navigate('/')}
+          style={{
+            display: 'flex', alignItems: 'center', gap: 10,
+            cursor: 'pointer', textDecoration: 'none', flexShrink: 0,
+          }}
+        >
+          <div style={{
+            width: 34, height: 34, borderRadius: 10, flexShrink: 0,
+            background: 'linear-gradient(135deg,#2563eb,#7c3aed)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16,
+          }}>
             🎧
           </div>
-          <span className="font-serif font-semibold text-slate-900 text-[1.05rem] tracking-tight hidden sm:block">
+          <span style={{
+            fontFamily: 'Lora, serif', fontSize: '1.05rem',
+            fontWeight: 600, color: '#0f172a', letterSpacing: '-.01em',
+          }}>
             IELTS Listening Pro
           </span>
-        </Link>
+        </div>
 
-        {/* Nav Links */}
-        <div className="flex items-center gap-1">
-          {navLinks.map(link => (
-            <button
-              key={link.id}
-              onClick={() => handleNav(link.id)}
-              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-[13px] font-medium transition-all duration-150 border border-transparent
-                ${active === link.id && link.id !== 'contact'
-                  ? link.id === 'academic'
-                    ? 'bg-violet-50 text-violet-700 border-violet-200'
-                    : link.id === 'general'
-                      ? 'bg-teal-50 text-teal-700 border-teal-200'
-                      : 'bg-blue-50 text-blue-700 border-blue-200'
-                  : 'text-slate-500 hover:bg-slate-100 hover:text-slate-800'
-                }`}
-            >
-              <span className="text-xs">{link.icon}</span>
-              {link.label}
-            </button>
-          ))}
+        {/* Nav links */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          <Dropdown label="Practice"  icon="📝" items={practiceItems}  />
+          <Dropdown label="Resources" icon="📖" items={resourceItems}  />
+
+          {/* About Us — no dropdown */}
+          <button
+            onClick={() => {}}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 5,
+              padding: '7px 14px', borderRadius: 7,
+              background: 'transparent', border: 'none',
+              color: '#475569', fontSize: 13, fontWeight: 500,
+              cursor: 'pointer', fontFamily: 'Plus Jakarta Sans, sans-serif',
+              transition: 'all .16s',
+            }}
+            onMouseEnter={e => e.currentTarget.style.backgroundColor = '#f8fafc'}
+            onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
+          >
+            About Us
+          </button>
+
+          {/* Contact — no dropdown */}
+          <button
+            onClick={onContactClick}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 5,
+              padding: '7px 14px', borderRadius: 7,
+              background: 'transparent', border: 'none',
+              color: '#475569', fontSize: 13, fontWeight: 500,
+              cursor: 'pointer', fontFamily: 'Plus Jakarta Sans, sans-serif',
+              transition: 'all .16s',
+            }}
+            onMouseEnter={e => e.currentTarget.style.backgroundColor = '#f8fafc'}
+            onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
+          >
+            Contact
+          </button>
         </div>
 
         {/* Auth buttons */}
-        <div className="flex items-center gap-2">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
           {user ? (
             <>
-              <div className="flex items-center gap-2 px-3 py-1 bg-slate-100 rounded-full border border-slate-200 text-xs text-slate-600 font-medium">
-                <div className="w-6 h-6 rounded-full bg-gradient-to-br from-blue-500 to-violet-500 flex items-center justify-center text-white text-[9px] font-bold flex-shrink-0">
-                  {(user.displayName || user.email).slice(0, 2).toUpperCase()}
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: 7,
+                padding: '4px 14px 4px 4px',
+                background: '#f8fafc', border: '1px solid #e2e8f0',
+                borderRadius: 30, fontSize: 12.5, color: '#475569',
+              }}>
+                <div style={{
+                  width: 26, height: 26, borderRadius: '50%',
+                  background: 'linear-gradient(135deg,#2563eb,#7c3aed)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: 9, fontWeight: 700, color: '#fff', flexShrink: 0,
+                }}>
+                  {(user.displayName || user.email || 'U').slice(0, 2).toUpperCase()}
                 </div>
-                <span className="hidden sm:block">{(user.displayName || user.email).split(' ')[0]}</span>
+                <span style={{ fontWeight: 500 }}>
+                  {(user.displayName || user.email || '').split(' ')[0]}
+                </span>
               </div>
-              <button onClick={logout} className="btn-ghost text-xs px-3 py-1.5">
+              <button
+                onClick={logout}
+                style={{
+                  padding: '7px 16px', borderRadius: 7, fontSize: 12.5,
+                  fontWeight: 600, cursor: 'pointer',
+                  background: 'transparent', border: '1px solid #e2e8f0',
+                  color: '#475569', fontFamily: 'Plus Jakarta Sans, sans-serif',
+                  transition: 'all .16s',
+                }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = '#2563eb'; e.currentTarget.style.color = '#2563eb' }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = '#e2e8f0'; e.currentTarget.style.color = '#475569' }}
+              >
                 Sign Out
               </button>
             </>
           ) : (
             <>
-              <button onClick={() => onAuthClick('login')} className="btn-ghost text-xs px-3 py-1.5">
+              <button
+                onClick={() => onAuthClick('login')}
+                style={{
+                  padding: '7px 16px', borderRadius: 7, fontSize: 12.5,
+                  fontWeight: 600, cursor: 'pointer',
+                  background: 'transparent', border: '1px solid #e2e8f0',
+                  color: '#475569', fontFamily: 'Plus Jakarta Sans, sans-serif',
+                  transition: 'all .16s',
+                }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = '#2563eb'; e.currentTarget.style.color = '#2563eb' }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = '#e2e8f0'; e.currentTarget.style.color = '#475569' }}
+              >
                 Sign In
               </button>
-              <button onClick={() => onAuthClick('signup')} className="btn-primary text-xs px-3 py-1.5">
+              <button
+                onClick={() => onAuthClick('signup')}
+                style={{
+                  padding: '7px 16px', borderRadius: 7, fontSize: 12.5,
+                  fontWeight: 600, cursor: 'pointer', border: 'none',
+                  background: '#2563eb', color: '#fff',
+                  fontFamily: 'Plus Jakarta Sans, sans-serif',
+                  transition: 'all .16s',
+                }}
+                onMouseEnter={e => { e.currentTarget.style.background = '#1d4ed8'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(37,99,235,.3)' }}
+                onMouseLeave={e => { e.currentTarget.style.background = '#2563eb'; e.currentTarget.style.boxShadow = 'none' }}
+              >
                 Sign Up Free
               </button>
             </>
           )}
         </div>
-      </div>
-    </nav>
+      </nav>
+    </>
   )
 }
