@@ -365,7 +365,7 @@ export default function TestPage({ showToast }) {
       ══════════════════════════════════════════════════════ */}
       <div style={{
         position: 'sticky',
-        top: 0,
+        top: 62,
         zIndex: 100,
         background: '#fff',
         borderBottom: '1px solid #e2e8f0',
