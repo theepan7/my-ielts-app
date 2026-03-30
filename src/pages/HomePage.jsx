@@ -152,7 +152,7 @@ export default function HomePage({ onAuthClick, showToast }) {
       gap: 20,
       flexWrap: 'wrap'
     }}>
-      {[['120+','Full Tests'],['Free','Access'],['99%','Success Rate']['99%','Success Rate']].map(([n, l]) => (
+      {[['120+','Full Tests'],['Free','Access'],['98%','Success Rate'],['5000+','Active Students']].map(([n, l]) => (
         <div key={l} style={{ textAlign: 'center' }}>
           <div style={{
             fontFamily: 'Lora,serif',
