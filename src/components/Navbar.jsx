@@ -112,7 +112,7 @@ export default function Navbar({ onAuthClick, onContactClick }) {
       desc:    'Browse the complete test library',
       icon:    '📋',
       iconBg:  '#eff4ff',
-      action:  () => navigate('/'),
+      action: () => navigate('/band-score-guide'), 
     },
     { divider: true },
     {
