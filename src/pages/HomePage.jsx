@@ -92,7 +92,7 @@ export default function HomePage({ onAuthClick, showToast }) {
     <div style={{ background: '#f4f6fb', minHeight: '100vh' }}>
 
       {/* ── HERO ── */}
-         <div style={{
+  <div style={{
   background: 'linear-gradient(135deg,#1e3a8a,#1d4ed8 55%,#4338ca)',
   padding: '28px 20px 26px',
   textAlign: 'center',
@@ -121,7 +121,7 @@ export default function HomePage({ onAuthClick, showToast }) {
       fontWeight: 500,
       marginBottom: 10,
     }}>
-      ✦ 100+ Practice Tests
+      ✦ Updated for 2026 Exams
     </div>
 
     {/* Title */}
@@ -133,7 +133,7 @@ export default function HomePage({ onAuthClick, showToast }) {
       lineHeight: 1.25,
       marginBottom: 6,
     }}>
-      IELTS Listening
+      Master Your IELTS Listening
     </h1>
 
     {/* Subtitle */}
@@ -142,7 +142,7 @@ export default function HomePage({ onAuthClick, showToast }) {
       fontSize: 13,
       marginBottom: 16,
     }}>
-      Real exam-style tests with instant results
+      Practice with real exam simulations and hit Band 8.0+ faster
     </p>
 
     {/* Stats (more compact) */}
@@ -152,7 +152,7 @@ export default function HomePage({ onAuthClick, showToast }) {
       gap: 20,
       flexWrap: 'wrap'
     }}>
-      {[['100','Tests'],['4K+','Questions'],['9.0','Band']].map(([n, l]) => (
+      {[['120+','Full Tests'],['Free','Access'],['98%','Success Rate']].map(([n, l]) => (
         <div key={l} style={{ textAlign: 'center' }}>
           <div style={{
             fontFamily: 'Lora,serif',
@@ -175,6 +175,8 @@ export default function HomePage({ onAuthClick, showToast }) {
 
   </div>
 </div>
+  
+
     
       {/* ── MAIN CONTENT ── */}
       <div style={{
