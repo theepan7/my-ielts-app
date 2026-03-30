@@ -8,7 +8,7 @@ const AV_COLORS = [
   '#059669','#be185d','#0ea5e9','#65a30d','#7c3aed'
 ]
 
-export default function Leaderboard() {
+export default function Leaderboard({ onAuthClick }) {
   const { user }                = useAuth()
   const [entries,  setEntries]  = useState([])
   const [userRank, setUserRank] = useState(null)
@@ -31,7 +31,6 @@ export default function Leaderboard() {
 
   useEffect(() => {
     load()
-    // Auto-refresh every 60 seconds
     const interval = setInterval(load, 60000)
     return () => clearInterval(interval)
   }, [user])
@@ -52,7 +51,6 @@ export default function Leaderboard() {
         border: `1px solid ${isMe ? '#93c5fd' : i === 0 ? '#fde68a' : 'transparent'}`,
         transition: 'all .16s',
       }}>
-        {/* Rank */}
         <span style={{
           fontSize: 11, fontWeight: 700,
           minWidth: 18, textAlign: 'center',
@@ -60,8 +58,6 @@ export default function Leaderboard() {
         }}>
           {rankIcon(e.rank)}
         </span>
-
-        {/* Avatar */}
         <div style={{
           width: 26, height: 26, borderRadius: '50%', flexShrink: 0,
           background: AV_COLORS[i % AV_COLORS.length],
@@ -70,8 +66,6 @@ export default function Leaderboard() {
         }}>
           {(e.userName || 'U').slice(0, 2).toUpperCase()}
         </div>
-
-        {/* Name only — no test count */}
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{
             fontSize: 12.5, fontWeight: 600, color: '#0f172a',
@@ -85,8 +79,6 @@ export default function Leaderboard() {
             )}
           </div>
         </div>
-
-        {/* Avg band score */}
         <div style={{ textAlign: 'right', flexShrink: 0 }}>
           <div style={{ fontSize: 13, fontWeight: 700, color: '#2563eb' }}>
             {e.avgBand || '—'}
@@ -102,8 +94,10 @@ export default function Leaderboard() {
       background: '#fff', border: '1px solid #e2e8f0',
       borderRadius: 12, padding: 16,
       boxShadow: '0 1px 3px rgba(15,23,42,.07)',
+      position: 'relative', overflow: 'hidden',   // needed for overlay
     }}>
-      {/* Header */}
+
+      {/* ── Header ── */}
       <div style={{
         display: 'flex', justifyContent: 'space-between',
         alignItems: 'center', marginBottom: 12,
@@ -126,56 +120,124 @@ export default function Leaderboard() {
         </button>
       </div>
 
-      {/* Entries */}
-      {loading ? (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          {[...Array(5)].map((_, i) => (
-            <div key={i} style={{
-              height: 42, background: '#f1f5f9', borderRadius: 8,
-              animation: 'pulse 1.5s infinite',
-            }} />
-          ))}
-        </div>
-      ) : entries.length === 0 ? (
-        <p style={{
-          fontSize: 12, color: '#94a3b8',
-          textAlign: 'center', padding: '16px 0',
-        }}>
-          No scores yet — complete a test to be first! 🎯
-        </p>
-      ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-          {entries.map((e, i) => (
-            <LeaderboardRow
-              key={e.userId || i}
-              e={e} i={i}
-              isMe={user && e.userId === user.uid}
-            />
-          ))}
-
-          {/* Show current user's rank if not in top 10 */}
-          {user && !userInTop10 && userRank && (
-            <>
-              <div style={{ textAlign: 'center', color: '#94a3b8', fontSize: 11, padding: '2px 0' }}>
-                · · ·
-              </div>
+      {/* ── Entries (always rendered, blurred when logged out) ── */}
+      <div style={{
+        filter: !user ? 'blur(4px)' : 'none',
+        pointerEvents: !user ? 'none' : 'auto',
+        userSelect: !user ? 'none' : 'auto',
+        transition: 'filter .3s',
+      }}>
+        {loading ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {[...Array(5)].map((_, i) => (
+              <div key={i} style={{
+                height: 42, background: '#f1f5f9', borderRadius: 8,
+                animation: 'pulse 1.5s infinite',
+              }} />
+            ))}
+          </div>
+        ) : entries.length === 0 ? (
+          <p style={{ fontSize: 12, color: '#94a3b8', textAlign: 'center', padding: '16px 0' }}>
+            No scores yet — complete a test to be first! 🎯
+          </p>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+            {entries.map((e, i) => (
               <LeaderboardRow
-                e={userRank}
-                i={userRank.rank - 1}
-                isMe={true}
+                key={e.userId || i}
+                e={e} i={i}
+                isMe={user && e.userId === user.uid}
               />
-            </>
-          )}
+            ))}
+            {user && !userInTop10 && userRank && (
+              <>
+                <div style={{ textAlign: 'center', color: '#94a3b8', fontSize: 11, padding: '2px 0' }}>
+                  · · ·
+                </div>
+                <LeaderboardRow e={userRank} i={userRank.rank - 1} isMe={true} />
+              </>
+            )}
+          </div>
+        )}
+
+        {/* Footer */}
+        <div style={{
+          borderTop: '1px solid #e2e8f0', marginTop: 10, paddingTop: 10,
+          textAlign: 'center', fontSize: 10, color: '#94a3b8',
+        }}>
+          Top 10 · Ranked by average band score · Updates after each test
+        </div>
+      </div>
+
+      {/* ── Sign-up overlay — shown only when logged out ── */}
+      {!user && (
+        <div style={{
+          position: 'absolute', inset: 0,
+          display: 'flex', flexDirection: 'column',
+          alignItems: 'center', justifyContent: 'center',
+          gap: 12, padding: '24px 20px',
+          background: 'rgba(255,255,255,0.55)',
+          backdropFilter: 'blur(2px)',
+          borderRadius: 12,
+          textAlign: 'center',
+        }}>
+          {/* Lock icon */}
+          <div style={{
+            width: 44, height: 44, borderRadius: '50%',
+            background: 'linear-gradient(135deg,#2563eb,#7c3aed)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 20, boxShadow: '0 4px 14px rgba(37,99,235,.3)',
+          }}>
+            🔒
+          </div>
+
+          <div>
+            <div style={{
+              fontFamily: 'Lora, serif', fontWeight: 600,
+              fontSize: 14, color: '#0f172a', marginBottom: 6,
+            }}>
+              See how you rank globally
+            </div>
+            <div style={{ fontSize: 12, color: '#64748b', lineHeight: 1.5 }}>
+              Sign up free to track your progress<br />and compete on the global leaderboard.
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button
+              onClick={() => onAuthClick?.('signup')}
+              style={{
+                padding: '8px 18px', borderRadius: 8, border: 'none',
+                background: 'linear-gradient(135deg,#2563eb,#7c3aed)',
+                color: '#fff', fontSize: 12.5, fontWeight: 700,
+                cursor: 'pointer', fontFamily: 'Plus Jakarta Sans, sans-serif',
+                boxShadow: '0 4px 12px rgba(37,99,235,.3)',
+                transition: 'all .16s',
+              }}
+              onMouseEnter={e => e.currentTarget.style.opacity = '.88'}
+              onMouseLeave={e => e.currentTarget.style.opacity = '1'}
+            >
+              Sign Up Free
+            </button>
+            <button
+              onClick={() => onAuthClick?.('login')}
+              style={{
+                padding: '8px 18px', borderRadius: 8,
+                background: 'transparent',
+                border: '1.5px solid #e2e8f0',
+                color: '#475569', fontSize: 12.5, fontWeight: 600,
+                cursor: 'pointer', fontFamily: 'Plus Jakarta Sans, sans-serif',
+                transition: 'all .16s',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = '#2563eb'; e.currentTarget.style.color = '#2563eb' }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = '#e2e8f0'; e.currentTarget.style.color = '#475569' }}
+            >
+              Sign In
+            </button>
+          </div>
         </div>
       )}
 
-      {/* Footer */}
-      <div style={{
-        borderTop: '1px solid #e2e8f0', marginTop: 10, paddingTop: 10,
-        textAlign: 'center', fontSize: 10, color: '#94a3b8',
-      }}>
-        Top 10 · Ranked by average band score · Updates after each test
-      </div>
     </div>
   )
 }
