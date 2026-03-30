@@ -3,6 +3,43 @@ import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 
+{/* Home icon button */}
+<button
+  onClick={() => {
+    navigate('/')
+    window.location.reload() // force full reload
+  }}
+  style={{
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 34,
+    height: 30,
+    borderRadius: 7,
+    background: 'transparent',
+    border: 'none',
+    color: '#475569',
+    cursor: 'pointer',
+    transition: 'all .16s',
+  }}
+  onMouseEnter={e => e.currentTarget.style.backgroundColor = '#f8fafc'}
+  onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
+>
+  <svg
+    width="16"
+    height="16"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+  >
+    <path d="M3 10.5L12 3l9 7.5" />
+    <path d="M5 10v10h14V10" />
+  </svg>
+</button>
+
+
+
 // ── Dropdown menu component ───────────────────────────────
 function Dropdown({ label, items, icon }) {
   const [open, setOpen] = useState(false)
