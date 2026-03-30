@@ -1,3 +1,4 @@
+// src/components/Footer.jsx
 import { useNavigate } from 'react-router-dom'
 
 export default function Footer({ onContactClick }) {
@@ -7,18 +8,18 @@ export default function Footer({ onContactClick }) {
     {
       title: 'Practice',
       links: [
-        { label: 'Academic Tests',    action: () => navigate('/?cat=academic') },
-        { label: 'General Training',  action: () => navigate('/?cat=general')  },
-        { label: 'All 100 Tests',     action: () => navigate('/')              },
+        { label: 'All 100 Tests',       action: () => navigate('/')               },
+        { label: 'Academic Tests',       action: () => navigate('/?cat=academic')  },
+        { label: 'General Training',     action: () => navigate('/?cat=general')   },
       ],
     },
     {
       title: 'Resources',
       links: [
-        { label: 'Band Score Guide', action: () => {} },
-        { label: 'Listening Tips',   action: () => {} },
-        { label: 'Study Plans',      action: () => {} },
-        { label: 'FAQ',              action: () => {} },
+        { label: 'Band Score Guide',    action: () => {} },
+        { label: 'Listening Tips',      action: () => {} },
+        { label: 'Study Plans',         action: () => {} },
+        { label: 'FAQ',                 action: () => {} },
       ],
     },
     {
@@ -33,54 +34,97 @@ export default function Footer({ onContactClick }) {
   ]
 
   return (
-    <footer className="bg-white border-t border-slate-200 mt-auto">
-      <div className="max-w-7xl mx-auto px-6 pt-12 pb-8">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-10 pb-10 border-b border-slate-100">
+    <footer style={{ background: '#fff', borderTop: '1px solid #e2e8f0', marginTop: 'auto' }}>
+      <div style={{
+        maxWidth: 1240, margin: '0 auto',
+        padding: '40px 24px 28px',
+        display: 'grid',
+        gridTemplateColumns: '2fr 1fr 1fr 1fr',
+        gap: 32,
+      }}>
 
-          {/* Brand */}
-          <div className="md:col-span-1">
-            <div className="flex items-center gap-2 mb-3">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-600 to-violet-600 flex items-center justify-center text-sm">🎧</div>
-              <span className="font-serif font-semibold text-slate-900">IELTS Listening Pro</span>
-            </div>
-            <p className="text-xs text-slate-400 leading-relaxed mb-4">
-              The most comprehensive IELTS Listening practice platform — 100 full tests with authentic audio and instant band score results.
-            </p>
-            <div className="flex gap-2">
-              {['𝕏', 'f', '▶', '◈'].map((s, i) => (
-                <button key={i} className="w-8 h-8 rounded-lg border border-slate-200 bg-slate-50 hover:border-blue-300 hover:text-blue-600 hover:bg-blue-50 text-slate-400 text-xs flex items-center justify-center transition-all">
-                  {s}
-                </button>
-              ))}
-            </div>
+        {/* Brand */}
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 10 }}>
+            <div style={{
+              width: 30, height: 30, borderRadius: 8, fontSize: 13,
+              background: 'linear-gradient(135deg,#2563eb,#7c3aed)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>🎧</div>
+            <span style={{ fontFamily: 'Lora,serif', fontSize: '.95rem', fontWeight: 600, color: '#0f172a' }}>
+              IELTS Listening Pro
+            </span>
           </div>
-
-          {/* Link columns */}
-          {cols.map(col => (
-            <div key={col.title}>
-              <h4 className="text-[10.5px] font-bold text-slate-400 uppercase tracking-widest mb-3">{col.title}</h4>
-              <ul className="space-y-2">
-                {col.links.map(link => (
-                  <li key={link.label}>
-                    <button onClick={link.action} className="text-[13px] text-slate-500 hover:text-blue-600 transition-colors text-left">
-                      {link.label}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
-        </div>
-
-        <div className="flex flex-col sm:flex-row justify-between items-center gap-3 pt-5">
-          <p className="text-[11.5px] text-slate-400">
-            © 2025 IELTS Listening Pro. Not affiliated with British Council, IDP or Cambridge Assessment.
+          <p style={{ fontSize: 12, color: '#475569', lineHeight: 1.75, maxWidth: 270, marginBottom: 14 }}>
+            The most comprehensive IELTS Listening practice platform — 100 full tests with authentic audio and instant band score results.
           </p>
-          <div className="flex gap-2">
-            {['🔒 Secure', '✓ Verified', '🌍 Global'].map(b => (
-              <span key={b} className="text-[10.5px] text-slate-400 bg-slate-50 border border-slate-200 rounded px-2 py-0.5">{b}</span>
+          <div style={{ display: 'flex', gap: 7 }}>
+            {['𝕏', 'f', '▶', '◈', 'in'].map((s, i) => (
+              <button key={i} style={{
+                width: 28, height: 28, borderRadius: 6,
+                border: '1px solid #e2e8f0', background: '#f8fafc',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: 11, cursor: 'pointer', color: '#475569',
+                transition: 'all .16s',
+              }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = '#2563eb'; e.currentTarget.style.color = '#2563eb'; e.currentTarget.style.background = '#eff4ff' }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = '#e2e8f0'; e.currentTarget.style.color = '#475569'; e.currentTarget.style.background = '#f8fafc' }}
+              >
+                {s}
+              </button>
             ))}
           </div>
+        </div>
+
+        {/* Link columns */}
+        {cols.map(col => (
+          <div key={col.title}>
+            <h4 style={{
+              fontSize: 10.5, fontWeight: 700, textTransform: 'uppercase',
+              letterSpacing: '.07em', color: '#94a3b8', marginBottom: 12,
+            }}>
+              {col.title}
+            </h4>
+            <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {col.links.map(link => (
+                <li key={link.label}>
+                  <button
+                    onClick={link.action}
+                    style={{
+                      background: 'none', border: 'none', padding: 0,
+                      fontSize: 13, color: '#475569', cursor: 'pointer',
+                      fontFamily: 'Plus Jakarta Sans, sans-serif',
+                      transition: 'color .14s', textAlign: 'left',
+                    }}
+                    onMouseEnter={e => e.currentTarget.style.color = '#2563eb'}
+                    onMouseLeave={e => e.currentTarget.style.color = '#475569'}
+                  >
+                    {link.label}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
+      </div>
+
+      {/* Bottom bar */}
+      <div style={{
+        borderTop: '1px solid #e2e8f0', padding: '13px 24px',
+        maxWidth: 1240, margin: '0 auto',
+        display: 'flex', justifyContent: 'space-between',
+        alignItems: 'center', flexWrap: 'wrap', gap: 8,
+      }}>
+        <p style={{ fontSize: 11.5, color: '#94a3b8' }}>
+          © 2025 IELTS Listening Pro. Not affiliated with British Council, IDP or Cambridge Assessment.
+        </p>
+        <div style={{ display: 'flex', gap: 6 }}>
+          {['🔒 Secure', '✓ Verified', '🌍 Global'].map(b => (
+            <span key={b} style={{
+              background: '#f8fafc', border: '1px solid #e2e8f0',
+              borderRadius: 5, padding: '2px 8px', fontSize: 10.5, color: '#94a3b8',
+            }}>{b}</span>
+          ))}
         </div>
       </div>
     </footer>
