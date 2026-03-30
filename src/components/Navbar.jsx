@@ -209,24 +209,7 @@ export default function Navbar({ onAuthClick, onContactClick }) {
           <Dropdown label="Practice"  icon="📝" items={practiceItems}  />
           <Dropdown label="Resources" icon="📖" items={resourceItems}  />
 
-          {/* About Us — no dropdown */}
-          <button
-            onClick={() => {}}
-            style={{
-              display: 'flex', alignItems: 'center', gap: 5,
-              padding: '7px 14px', borderRadius: 7,
-              background: 'transparent', border: 'none',
-              color: '#475569', fontSize: 13, fontWeight: 500,
-              cursor: 'pointer', fontFamily: 'Plus Jakarta Sans, sans-serif',
-              transition: 'all .16s',
-            }}
-            onMouseEnter={e => e.currentTarget.style.backgroundColor = '#f8fafc'}
-            onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
-          >
-            About Us
-          </button>
-
-          {/* Contact — no dropdown */}
+                {/* Contact — no dropdown */}
           <button
             onClick={onContactClick}
             style={{
