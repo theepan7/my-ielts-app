@@ -1,9 +1,12 @@
+// App.jsx — add BandScorePage import and route
+
 import { Routes, Route, useLocation } from 'react-router-dom'
 import Navbar        from './components/Navbar'
 import Footer        from './components/Footer'
 import HomePage      from './pages/HomePage'
 import TestPage      from './pages/TestPage'
 import ResultPage    from './pages/ResultPage'
+import BandScorePage from './pages/BandScorePage'
 import AuthModal     from './components/AuthModal'
 import ContactModal  from './components/ContactModal'
 import Toast         from './components/Toast'
@@ -23,14 +26,6 @@ export default function App() {
   }
 
   return (
-    /*
-      On the test page we must NOT constrain <main> to a flex-child height.
-      flex-1 inside a flex-col parent gives <main> a fixed height and makes it
-      the scroll container — that breaks position:sticky inside TestPage because
-      sticky positions relative to its nearest scrollable ancestor (the <main>),
-      not the viewport.  Switching to a plain block element on the test route
-      lets the page scroll naturally so the TestPage sticky header works.
-    */
     <div className={isTestPage ? '' : 'min-h-screen flex flex-col'}>
       <Navbar
         onAuthClick={setAuthModal}
@@ -39,47 +34,29 @@ export default function App() {
 
       <main className={isTestPage ? 'block' : 'flex-1'}>
         <Routes>
-          <Route
-            path="/"
-            element={
-              <HomePage
-                onAuthClick={setAuthModal}
-                showToast={showToast}
-              />
-            }
+          <Route path="/"
+            element={<HomePage onAuthClick={setAuthModal} showToast={showToast} />}
           />
-          <Route
-            path="/test/:testId"
-            element={
-              <TestPage
-                onAuthClick={setAuthModal}
-                showToast={showToast}
-              />
-            }
+          <Route path="/test/:testId"
+            element={<TestPage onAuthClick={setAuthModal} showToast={showToast} />}
           />
-          <Route
-            path="/result"
+          <Route path="/result"
             element={<ResultPage showToast={showToast} />}
+          />
+          <Route path="/band-score-guide"
+            element={<BandScorePage />}
           />
         </Routes>
       </main>
 
-      {/* Footer is already hidden by TestPage's own useEffect while a test is open */}
       <Footer onContactClick={() => setContactOpen(true)} />
 
       {authModal && (
-        <AuthModal
-          mode={authModal}
-          onClose={() => setAuthModal(null)}
-          onSwitch={setAuthModal}
-          showToast={showToast}
-        />
+        <AuthModal mode={authModal} onClose={() => setAuthModal(null)}
+          onSwitch={setAuthModal} showToast={showToast} />
       )}
       {contactOpen && (
-        <ContactModal
-          onClose={() => setContactOpen(false)}
-          showToast={showToast}
-        />
+        <ContactModal onClose={() => setContactOpen(false)} showToast={showToast} />
       )}
       {toast && <Toast msg={toast.msg} type={toast.type} />}
     </div>
