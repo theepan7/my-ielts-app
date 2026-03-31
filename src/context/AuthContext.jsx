@@ -1,4 +1,5 @@
-import { createContext, useContext, useEffect, useState } from 'react'
+// src/context/AuthContext.jsx
+import React, { createContext, useContext, useEffect, useState } from 'react'
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
@@ -15,57 +16,55 @@ export function AuthProvider({ children }) {
   const [user,    setUser]    = useState(null)
   const [loading, setLoading] = useState(true)
 
-  // Listen for Firebase auth state changes
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, firebaseUser => {
-      setUser(firebaseUser)
+    const unsub = onAuthStateChanged(auth, u => {
+      setUser(u)
       setLoading(false)
     })
     return unsub
   }, [])
 
-  // ── SIGN UP ──────────────────────────────────────────────
-  async function signup(name, email, password) {
-    // Step 1: Create Firebase auth account
+  // ── SIGN UP — now includes country ───────────────────────
+  async function signup(name, email, password, countryCode, countryName, countryFlag) {
     const cred = await createUserWithEmailAndPassword(auth, email, password)
 
-    // Step 2: Set display name on the Firebase user profile
+    // Store name in Firebase Auth profile
     await updateProfile(cred.user, { displayName: name })
 
-    // Step 3: Create a leaderboard entry in Firestore
-    // Wrapped in its own try/catch so a Firestore error
-    // does NOT block the signup from succeeding
+    // Create leaderboard entry with country info
     try {
       await setDoc(doc(db, 'leaderboard', cred.user.uid), {
-        userId:         cred.user.uid,
-        userName:       name,
-        email:          email.toLowerCase(),
-        testsCompleted: 0,
-        totalCorrect:   0,
-        totalQuestions: 0,
-        avgScore:       0,
-        avgBand:        '—',
-        bestBand:       '—',
-        bestScore:      0,
-        createdAt:      serverTimestamp(),
-        lastPlayed:     null,
+        userId:          cred.user.uid,
+        userName:        name,
+        email:           email.toLowerCase(),
+        countryCode:     countryCode  || '',
+        countryName:     countryName  || '',
+        countryFlag:     countryFlag  || '🌍',
+        testsCompleted:  0,
+        uniqueTestsDone: [],
+        bestScores:      {},
+        totalCorrect:    0,
+        totalQuestions:  0,
+        avgScore:        0,
+        avgBand:         '—',
+        bestBand:        '—',
+        bestScore:       0,
+        createdAt:       serverTimestamp(),
+        lastPlayed:      null,
       })
-    } catch (firestoreErr) {
-      // Leaderboard entry failed but auth still succeeded
-      console.warn('Leaderboard entry not created:', firestoreErr.message)
+    } catch (err) {
+      // Firestore error doesn't block auth success
+      console.warn('Leaderboard entry not created:', err.message)
     }
 
-    // Return the created user — onAuthStateChanged updates state automatically
     return cred.user
   }
 
-  // ── SIGN IN ──────────────────────────────────────────────
   async function login(email, password) {
     const cred = await signInWithEmailAndPassword(auth, email, password)
     return cred.user
   }
 
-  // ── SIGN OUT ─────────────────────────────────────────────
   async function logout() {
     await signOut(auth)
   }
