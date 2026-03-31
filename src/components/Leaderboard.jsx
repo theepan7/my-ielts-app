@@ -187,7 +187,7 @@ export default function Leaderboard({ onAuthClick }) {
               fontFamily: 'Lora, serif', fontWeight: 600,
               fontSize: 14, color: '#0f172a', marginBottom: 6,
             }}>
-              Sign up to see how you rank globally, track your progress <br />and compete on the global leaderboard.
+              Sign up to see how you rank globally and compete on the global leaderboard.
             </div>
             </div>
        
