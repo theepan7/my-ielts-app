@@ -79,9 +79,9 @@ export default function AboutPage() {
       }}>
         <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse at 30% 60%,rgba(255,255,255,.06),transparent 55%)' }} />
         <div style={{ position: 'relative', zIndex: 1, maxWidth: 580, margin: '0 auto' }}>
-          <div style={{ fontSize: 48, marginBottom: 16 }}>🎧</div>
+          <div style={{ fontSize: 48, marginBottom: 16 }}></div>
           <h1 style={{
-            fontFamily: 'Lora,serif', fontSize: '2.2rem', fontWeight: 600,
+            fontFamily: 'Lora,serif', fontSize: '1.2rem', fontWeight: 300,
             color: '#fff', marginBottom: 12, lineHeight: 1.2,
           }}>
             About IELTS Listening Pro
