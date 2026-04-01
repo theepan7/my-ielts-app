@@ -2,24 +2,24 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import {
-  fetchTests, fetchUserCompletedTests,
-} from '../firebase/services'
+import { fetchTests, fetchUserCompletedTests } from '../firebase/services'
 import Leaderboard from '../components/Leaderboard'
 import UserProgress from '../components/UserProgress'
 
 const diffStyle = d =>
-  d === 'Advanced'    ? { color: '#dc2626' } :
-  d === 'Intermediate'? { color: '#059669' } :
-                        { color: '#d97706' }
+  d === 'Advanced'     ? { color: '#dc2626' } :
+  d === 'Intermediate' ? { color: '#059669' } :
+                         { color: '#d97706' }
 
 const PER_PAGE = 12
 
 export default function HomePage({ onAuthClick, showToast }) {
-  const { user }      = useAuth()
-  const navigate      = useNavigate()
-  const [params]      = useSearchParams()
-  const catParam      = params.get('cat') || 'all'
+  const { user }   = useAuth()
+  const navigate   = useNavigate()
+  const [params]   = useSearchParams()
+
+  // Normalise catParam to avoid case-sensitive mismatches
+  const catParam   = (params.get('cat') || 'all').toLowerCase()
 
   const [allTests,  setAllTests]  = useState([])
   const [filtered,  setFiltered]  = useState([])
@@ -55,7 +55,8 @@ export default function HomePage({ onAuthClick, showToast }) {
     )
     if (diff)   list = list.filter(t => t.difficulty === diff)
     if (status === 'free')      list = list.filter(t => t.isFree)
-    if (status === 'completed') list = list.filter(t => completed.includes(t.id))
+    // Use docId for completion check — must match what fetchUserCompletedTests stores
+    if (status === 'completed') list = list.filter(t => completed.includes(t.docId))
     setFiltered(list)
     setPage(1)
   }, [catParam, search, diff, status, allTests, completed])
@@ -71,12 +72,6 @@ export default function HomePage({ onAuthClick, showToast }) {
 
   const totalPages = Math.ceil(filtered.length / PER_PAGE)
   const slice      = filtered.slice((page - 1) * PER_PAGE, page * PER_PAGE)
-
-  const done   = completed.length
-  const total  = allTests.length || 100
-  const pct    = Math.round((done / total) * 100)
-  const R = 28, C = 2 * Math.PI * R
-  const offset = C - (C * pct / 100)
 
   const sectionLabel =
     catParam === 'academic' ? 'Academic Tests' :
@@ -206,9 +201,9 @@ export default function HomePage({ onAuthClick, showToast }) {
             }}>
               {slice.map(test => (
                 <TestCard
-                  key={test.docId || test.id}
+                  key={test.docId}
                   test={test}
-                  isDone={completed.includes(test.id)}
+                  isDone={completed.includes(test.docId)}
                   isLocked={!test.isFree && !user}
                   onClick={() => handleTestClick(test)}
                 />
@@ -229,7 +224,7 @@ export default function HomePage({ onAuthClick, showToast }) {
                 }, [])
                 .map((n, i) =>
                   n === '…'
-                    ? <span key={`d${i}`} style={{ width: 34, height: 34, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8', fontSize: 13 }}>…</span>
+                    ? <span key={`ellipsis-${i}`} style={{ width: 34, height: 34, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8', fontSize: 13 }}>…</span>
                     : <PgnBtn key={n} active={page === n} onClick={() => { setPage(n); window.scrollTo({ top: 200, behavior: 'smooth' }) }}>{n}</PgnBtn>
                 )}
               <PgnBtn disabled={page === totalPages} onClick={() => setPage(p => p + 1)}>›</PgnBtn>
@@ -240,7 +235,11 @@ export default function HomePage({ onAuthClick, showToast }) {
         {/* RIGHT — sidebar */}
         <aside style={{ display: 'flex', flexDirection: 'column', gap: 14, position: 'sticky', top: 80 }}>
           <Leaderboard />
-          <UserProgress onAuthClick={onAuthClick} totalTests={allTests.length || 100} />
+          <UserProgress
+            onAuthClick={onAuthClick}
+            totalTests={allTests.length || 100}
+            completedCount={completed.length}
+          />
         </aside>
       </div>
     </div>
