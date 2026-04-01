@@ -8,27 +8,25 @@ export default function Footer({ onContactClick }) {
     {
       title: 'Practice',
       links: [
-        { label: 'All 100 Tests',       action: () => navigate('/')               },
-        { label: 'Academic Tests',       action: () => navigate('/?cat=academic')  },
-        { label: 'General Training',     action: () => navigate('/?cat=general')   },
+        { label: 'All 100 Tests', action: () => navigate('/') },
       ],
     },
     {
       title: 'Resources',
       links: [
-        { label: 'Band Score Guide',    action: () => navigate('/band-score')    },
-        { label: 'Listening Tips',      action: () => navigate('/listening-tips') },
-        { label: 'Study Plans',         action: () => navigate('/study-plans')   },
-        { label: 'FAQ',                 action: () => navigate('/faq')           },
+        { label: 'Band Score Guide', action: () => navigate('/band-score')      },
+        { label: 'Listening Tips',   action: () => navigate('/listening-tips')  },
+        { label: 'Study Plans',      action: () => navigate('/study-plans')     },
+        { label: 'FAQ',              action: () => navigate('/faq')             },
       ],
     },
     {
       title: 'Company',
       links: [
-        { label: 'About Us',       action: () => navigate('/about')  },
-        { label: 'Contact Us',     action: onContactClick            },
+        { label: 'About Us',       action: () => navigate('/about')   },
+        { label: 'Contact Us',     action: onContactClick             },
         { label: 'Privacy Policy', action: () => navigate('/privacy') },
-        { label: 'Terms of Use',   action: () => navigate('/terms')  },
+        { label: 'Terms of Use',   action: () => navigate('/terms')   },
       ],
     },
   ]
