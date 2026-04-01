@@ -1,83 +1,209 @@
+// src/components/UserProgress.jsx
+// Standalone progress ring — reads directly from leaderboard doc.
+// Completely independent of the Leaderboard component.
+import React, { useEffect, useState } from 'react'
 import { useAuth } from '../context/AuthContext'
+import { doc, getDoc } from 'firebase/firestore'
+import { db } from '../firebase/config'
 
-export default function UserProgress({ completedIds, onAuthClick }) {
-  const { user } = useAuth()
+export default function UserProgress({ onAuthClick, totalTests = 100 }) {
+  const { user }            = useAuth()
+  const [data, setData]     = useState(null)
+  const [loading, setLoading] = useState(false)
 
+  useEffect(() => {
+    if (!user) { setData(null); return }
+    setLoading(true)
+    getDoc(doc(db, 'leaderboard', user.uid))
+      .then(snap => {
+        if (snap.exists()) setData(snap.data())
+        else setData({})
+      })
+      .catch(() => setData({}))
+      .finally(() => setLoading(false))
+  }, [user?.uid])
+
+  // ── Not logged in ── show signup wall
   if (!user) {
     return (
-      <div className="card p-4 text-center">
-        <div className="text-3xl mb-2">🔓</div>
-        <h3 className="font-serif font-semibold text-slate-800 text-sm mb-1">Unlock All 100 Tests</h3>
-        <p className="text-xs text-slate-500 leading-relaxed mb-4">
-          Sign up free to access the full test library, track your progress, and appear on the global leaderboard.
+      <div style={{
+        background: '#fff', border: '1px solid #e2e8f0',
+        borderRadius: 12, padding: 16, textAlign: 'center',
+        boxShadow: '0 1px 3px rgba(15,23,42,.07)',
+      }}>
+        <div style={{ fontSize: 26, marginBottom: 8 }}>🔓</div>
+        <h3 style={{
+          fontFamily: 'Lora,serif', fontSize: '.95rem',
+          fontWeight: 600, marginBottom: 6, color: '#0f172a',
+        }}>
+          Unlock All 100 Tests
+        </h3>
+        <p style={{ color: '#475569', fontSize: 12, lineHeight: 1.65, marginBottom: 14 }}>
+          Sign up free to access the full test library, track your progress and appear on the leaderboard.
         </p>
-        <button onClick={() => onAuthClick('signup')} className="btn-primary w-full mb-2 text-xs py-2">
+        <button
+          onClick={() => onAuthClick('signup')}
+          style={{
+            width: '100%', padding: 9, borderRadius: 7,
+            background: '#2563eb', color: '#fff', fontSize: 13,
+            fontWeight: 600, cursor: 'pointer', border: 'none',
+            marginBottom: 7, fontFamily: 'Plus Jakarta Sans, sans-serif',
+          }}
+        >
           Create Free Account
         </button>
-        <button onClick={() => onAuthClick('login')} className="btn-ghost w-full text-xs py-2">
+        <button
+          onClick={() => onAuthClick('login')}
+          style={{
+            width: '100%', padding: 9, borderRadius: 7,
+            background: 'transparent', color: '#475569', fontSize: 13,
+            fontWeight: 600, cursor: 'pointer',
+            border: '1.5px solid #e2e8f0',
+            fontFamily: 'Plus Jakarta Sans, sans-serif',
+          }}
+        >
           I already have an account
         </button>
-        <p className="text-[10.5px] text-slate-400 mt-2">No credit card required</p>
+        <p style={{ fontSize: 10.5, color: '#94a3b8', marginTop: 6 }}>
+          No credit card required
+        </p>
       </div>
     )
   }
 
-  const done    = completedIds.length
-  const pct     = Math.round((done / 100) * 100)
-  const R       = 30
-  const C       = 2 * Math.PI * R
-  const offset  = C - (C * pct / 100)
+  // ── Loading ──
+  if (loading || !data) {
+    return (
+      <div style={{
+        background: '#fff', border: '1px solid #e2e8f0',
+        borderRadius: 12, padding: 16,
+        boxShadow: '0 1px 3px rgba(15,23,42,.07)',
+      }}>
+        <div style={{
+          height: 14, width: '60%', background: '#f1f5f9',
+          borderRadius: 4, marginBottom: 16,
+        }} />
+        <div style={{ display: 'flex', gap: 12 }}>
+          <div style={{ width: 72, height: 72, borderRadius: '50%', background: '#f1f5f9' }} />
+          <div style={{ flex: 1 }}>
+            <div style={{ height: 10, background: '#f1f5f9', borderRadius: 3, marginBottom: 8 }} />
+            <div style={{ height: 10, background: '#f1f5f9', borderRadius: 3, width: '70%' }} />
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // ── Progress calculations ──
+  const done         = (data.uniqueTestsDone || []).length
+  const pct          = Math.round((done / totalTests) * 100)
+  const bestBand     = data.bestBand   || '—'
+  const avgBand      = data.avgBand    || '—'
+  const testsCount   = data.testsCompleted || 0
+
+  // SVG ring
+  const R      = 28
+  const C      = 2 * Math.PI * R
+  const offset = C - (C * pct / 100)
 
   return (
-    <div className="card p-4">
-      <h3 className="text-[10.5px] font-bold text-slate-400 uppercase tracking-widest mb-3">📊 Your Progress</h3>
+    <div style={{
+      background: '#fff', border: '1px solid #e2e8f0',
+      borderRadius: 12, padding: 16,
+      boxShadow: '0 1px 3px rgba(15,23,42,.07)',
+    }}>
+      <div style={{
+        fontSize: 10.5, fontWeight: 700, textTransform: 'uppercase',
+        letterSpacing: '.07em', color: '#94a3b8', marginBottom: 12,
+      }}>
+        📊 Your Progress
+      </div>
 
-      <div className="flex items-center gap-3 mb-3">
-        {/* Ring */}
-        <svg width="72" height="72" className="flex-shrink-0">
+      {/* Ring + stats */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 12 }}>
+        <svg width="72" height="72" style={{ flexShrink: 0 }}>
+          {/* Track */}
           <circle cx="36" cy="36" r={R} fill="none" stroke="#f1f5f9" strokeWidth="6" />
+          {/* Fill */}
           <circle
-            cx="36" cy="36" r={R}
-            fill="none"
-            stroke="url(#pg)"
-            strokeWidth="6"
-            strokeLinecap="round"
+            cx="36" cy="36" r={R} fill="none"
+            stroke="url(#prog-gradient)"
+            strokeWidth="6" strokeLinecap="round"
             strokeDasharray={C.toFixed(1)}
             strokeDashoffset={offset.toFixed(1)}
-            style={{ transform: 'rotate(-90deg)', transformOrigin: '36px 36px', transition: 'stroke-dashoffset .7s' }}
+            style={{
+              transform: 'rotate(-90deg)',
+              transformOrigin: '36px 36px',
+              transition: 'stroke-dashoffset .7s ease',
+            }}
           />
           <defs>
-            <linearGradient id="pg" x1="0%" y1="0%" x2="100%" y2="0%">
+            <linearGradient id="prog-gradient" x1="0%" y1="0%" x2="100%" y2="0%">
               <stop offset="0%" stopColor="#2563eb" />
               <stop offset="100%" stopColor="#7c3aed" />
             </linearGradient>
           </defs>
-          <text x="36" y="41" textAnchor="middle" fill="#0f172a" fontSize="12" fontWeight="700" fontFamily="Plus Jakarta Sans">
+          <text
+            x="36" y="41" textAnchor="middle"
+            fill="#0f172a" fontSize="12" fontWeight="700"
+            fontFamily="Plus Jakarta Sans, sans-serif"
+          >
             {pct}%
           </text>
         </svg>
 
-        <div>
-          <p className="text-[10.5px] text-slate-400 mb-0.5">Completed</p>
-          <p className="text-lg font-bold text-slate-800">
-            {done}<span className="text-sm text-slate-400 font-normal"> / 100</span>
-          </p>
-          <p className="text-[10.5px] text-slate-400 mt-1 mb-0.5">Best Band</p>
-          <p className="text-lg font-bold text-amber-500">{done > 0 ? '7.0' : '—'}</p>
+        <div style={{ flex: 1 }}>
+          {/* Tests done */}
+          <div style={{ marginBottom: 8 }}>
+            <div style={{ fontSize: 10.5, color: '#94a3b8', marginBottom: 1 }}>
+              Tests Completed
+            </div>
+            <div style={{ fontSize: '1.05rem', fontWeight: 700, color: '#0f172a' }}>
+              {done}
+              <span style={{ fontSize: 12, color: '#94a3b8', fontWeight: 400 }}>
+                {' '}/ {totalTests}
+              </span>
+            </div>
+          </div>
+
+          {/* Best band */}
+          <div style={{ marginBottom: 8 }}>
+            <div style={{ fontSize: 10.5, color: '#94a3b8', marginBottom: 1 }}>
+              Best Band
+            </div>
+            <div style={{ fontSize: '1.05rem', fontWeight: 700, color: '#d97706' }}>
+              {bestBand}
+            </div>
+          </div>
+
+          {/* Avg band */}
+          <div>
+            <div style={{ fontSize: 10.5, color: '#94a3b8', marginBottom: 1 }}>
+              Avg Band
+            </div>
+            <div style={{ fontSize: '1.05rem', fontWeight: 700, color: '#2563eb' }}>
+              {avgBand}
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Bar */}
+      {/* Progress bar */}
       <div>
-        <div className="flex justify-between text-[10.5px] text-slate-400 mb-1">
+        <div style={{
+          display: 'flex', justifyContent: 'space-between',
+          fontSize: 10.5, color: '#94a3b8', marginBottom: 4,
+        }}>
           <span>Overall Progress</span>
-          <span>{done}/100</span>
+          <span>{done}/{totalTests}</span>
         </div>
-        <div className="h-1.5 bg-slate-100 rounded-full">
-          <div
-            className="h-full bg-gradient-to-r from-blue-500 to-violet-500 rounded-full transition-all duration-700"
-            style={{ width: `${pct}%` }}
-          />
+        <div style={{ height: 5, background: '#f1f5f9', borderRadius: 3 }}>
+          <div style={{
+            width: `${pct}%`, height: '100%',
+            background: 'linear-gradient(90deg,#2563eb,#7c3aed)',
+            borderRadius: 3,
+            transition: 'width .7s ease',
+          }} />
         </div>
       </div>
     </div>
