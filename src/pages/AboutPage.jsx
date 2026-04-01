@@ -75,33 +75,33 @@ export default function AboutPage() {
       {/* Hero */}
       <div style={{
         background: 'linear-gradient(135deg,#1e3a8a,#1d4ed8 55%,#4338ca)',
-        padding: '56px 28px 52px', textAlign: 'center', position: 'relative', overflow: 'hidden',
+        height: 75, display: 'flex', alignItems: 'center', justifyContent: 'center',
+        padding: '0 28px',
       }}>
-        <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse at 30% 60%,rgba(255,255,255,.06),transparent 55%)' }} />
-        <div style={{ position: 'relative', zIndex: 1, maxWidth: 200, margin: '0 auto' }}>
-          <div style={{ fontSize: 48, marginBottom: 16 }}></div>
-          <h1 style={{
-            fontFamily: 'Lora,serif', fontSize: '1.2rem', fontWeight: 300,
-            color: '#fff', marginBottom: 12, lineHeight: 1.2,
-          }}>
-            About IELTS Listening Pro
-          </h1>
-          <p style={{ color: 'rgba(255,255,255,.75)', fontSize: 15, lineHeight: 1.75, marginBottom: 28 }}>
-            We built this platform because quality IELTS listening practice should be accessible to everyone — not locked behind expensive courses or difficult-to-find materials.
-          </p>
-          {/* Stats */}
-          <div style={{ display: 'flex', justifyContent: 'center', gap: 28, flexWrap: 'wrap' }}>
-            {STATS.map(s => (
-              <div key={s.l} style={{ textAlign: 'center' }}>
-                <div style={{ fontFamily: 'Lora,serif', fontSize: '1.6rem', fontWeight: 700, color: '#fff' }}>{s.n}</div>
-                <div style={{ fontSize: 11, color: 'rgba(255,255,255,.6)', marginTop: 2 }}>{s.l}</div>
-              </div>
-            ))}
-          </div>
-        </div>
+        <h1 style={{
+          fontFamily: 'Lora, serif', fontSize: '2rem', fontWeight: 600,
+          color: '#fff', margin: 0,
+        }}>
+          About IELTS Listening Pro
+        </h1>
       </div>
 
       <div style={{ maxWidth: 900, margin: '0 auto', padding: '40px 22px 60px' }}>
+
+        {/* Stats */}
+        <div style={{
+          background: '#fff', border: '1px solid #e2e8f0', borderRadius: 14,
+          padding: '20px 28px', marginBottom: 32,
+          boxShadow: '0 1px 3px rgba(15,23,42,.07)',
+          display: 'flex', justifyContent: 'center', gap: 40, flexWrap: 'wrap',
+        }}>
+          {STATS.map(s => (
+            <div key={s.l} style={{ textAlign: 'center' }}>
+              <div style={{ fontFamily: 'Lora,serif', fontSize: '1.6rem', fontWeight: 700, color: '#1d4ed8' }}>{s.n}</div>
+              <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>{s.l}</div>
+            </div>
+          ))}
+        </div>
 
         {/* Mission */}
         <div style={{
