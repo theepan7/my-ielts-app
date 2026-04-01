@@ -78,18 +78,15 @@ export default function BandScorePage() {
       {/* Hero */}
       <div style={{
         background: 'linear-gradient(135deg,#1e3a8a,#1d4ed8 55%,#4338ca)',
-        padding: '52px 28px 48px', textAlign: 'center',
+        height: 75, display: 'flex', alignItems: 'center', justifyContent: 'center',
+        padding: '0 28px',
       }}>
-        <div style={{ fontSize: 44, marginBottom: 14 }}>🎯</div>
         <h1 style={{
           fontFamily: 'Lora, serif', fontSize: '2rem', fontWeight: 600,
-          color: '#fff', marginBottom: 10,
+          color: '#fff', margin: 0,
         }}>
           IELTS Listening Band Score Guide
         </h1>
-        <p style={{ color: 'rgba(255,255,255,.72)', fontSize: 14, maxWidth: 500, margin: '0 auto' }}>
-          Understand exactly how raw scores convert to band scores and what each level means.
-        </p>
       </div>
 
       <div style={{ maxWidth: 900, margin: '0 auto', padding: '36px 22px 60px' }}>
