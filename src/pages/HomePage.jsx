@@ -48,7 +48,6 @@ export default function HomePage({ onAuthClick, showToast }) {
   // ── Filter ──────────────────────────────────────────────
   useEffect(() => {
     let list = [...allTests]
-    // Category from URL param (set by navbar dropdown)
     if (catParam !== 'all') list = list.filter(t => t.category === catParam)
     if (search) list = list.filter(t =>
       t.title?.toLowerCase().includes(search.toLowerCase()) ||
@@ -73,14 +72,12 @@ export default function HomePage({ onAuthClick, showToast }) {
   const totalPages = Math.ceil(filtered.length / PER_PAGE)
   const slice      = filtered.slice((page - 1) * PER_PAGE, page * PER_PAGE)
 
-  // Progress ring values
   const done   = completed.length
   const total  = allTests.length || 100
   const pct    = Math.round((done / total) * 100)
   const R = 28, C = 2 * Math.PI * R
   const offset = C - (C * pct / 100)
 
-  // Section label
   const sectionLabel =
     catParam === 'academic' ? 'Academic Tests' :
     catParam === 'general'  ? 'General Training Tests' :
@@ -92,25 +89,26 @@ export default function HomePage({ onAuthClick, showToast }) {
       {/* ── HERO ── */}
       <div style={{
         background: 'linear-gradient(135deg,#1e3a8a,#1d4ed8 55%,#4338ca)',
-        padding: '48px 28px 44px', textAlign: 'center', position: 'relative', overflow: 'hidden',
+        height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center',
+        position: 'relative', overflow: 'hidden',
       }}>
         <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse at 25% 60%,rgba(255,255,255,.06),transparent 55%)' }} />
-        <div style={{ maxWidth: 560, margin: '0 auto', position: 'relative', zIndex: 1 }}>
+        <div style={{ maxWidth: 560, margin: '0 auto', position: 'relative', zIndex: 1, textAlign: 'center', padding: '0 28px' }}>
           <div style={{
             display: 'inline-flex', alignItems: 'center', gap: 6,
             background: 'rgba(255,255,255,.12)', border: '1px solid rgba(255,255,255,.2)',
             color: 'rgba(255,255,255,.85)', borderRadius: 20, padding: '4px 14px',
-            fontSize: 11.5, fontWeight: 500, marginBottom: 14,
+            fontSize: 11.5, fontWeight: 500, marginBottom: 10,
           }}>
             ✦ 100 Full-Length Practice Tests
           </div>
           <h1 style={{
             fontFamily: 'Lora, serif', fontSize: '2.1rem', fontWeight: 600,
-            color: '#fff', lineHeight: 1.2, marginBottom: 8,
+            color: '#fff', lineHeight: 1.2, marginBottom: 6,
           }}>
             Master IELTS Listening
           </h1>
-          <p style={{ color: 'rgba(255,255,255,.72)', fontSize: 14, marginBottom: 24 }}>
+          <p style={{ color: 'rgba(255,255,255,.72)', fontSize: 13, marginBottom: 14 }}>
             Authentic recordings · Real exam questions · Instant band score results
           </p>
           <div style={{ display: 'flex', justifyContent: 'center', gap: 32, flexWrap: 'wrap' }}>
