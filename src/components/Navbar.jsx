@@ -92,10 +92,7 @@ export default function Navbar({ onAuthClick, onContactClick }) {
   const navigate         = useNavigate()
 
   const practiceItems = [
-    { label: 'All 100 Tests',    desc: 'Browse the complete test library', icon: '📋', iconBg: '#eff4ff',  action: () => navigate('/') },
-    { divider: true },
-    { label: 'Academic Tests',   desc: 'Tests 1–50',                       icon: '📚', iconBg: '#f5f3ff',  action: () => navigate('/?cat=academic') },
-    { label: 'General Training', desc: 'Tests 51–100',                     icon: '📺', iconBg: '#ecfeff',  action: () => navigate('/?cat=general')  },
+    { label: 'All 100 Tests', desc: 'Browse the complete test library', icon: '📋', iconBg: '#eff4ff', action: () => navigate('/') },
   ]
 
   const resourceItems = [
