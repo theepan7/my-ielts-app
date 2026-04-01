@@ -1,8 +1,8 @@
 // src/pages/PrivacyPolicyPage.jsx
 import { useNavigate } from 'react-router-dom'
 
-const LAST_UPDATED = 'March 30, 2026'
-const APP_NAME     = 'IELTS Listening Pro'
+const LAST_UPDATED  = 'March 30, 2026'
+const APP_NAME      = 'IELTS Listening Pro'
 const CONTACT_EMAIL = 'support@ieltslisteningpro.com'
 
 const SECTIONS = [
@@ -132,95 +132,38 @@ const SECTIONS = [
   },
 ]
 
-// ─────────────────────────────────────────────────────────
 export default function PrivacyPolicyPage() {
   const navigate = useNavigate()
 
   return (
-    <div style={{
-      background: '#f4f6fb',
-      minHeight: '100vh',
-      fontFamily: 'Plus Jakarta Sans, sans-serif',
-      paddingBottom: 80,
-    }}>
+    <div style={{ background: '#f4f6fb', minHeight: '100vh', fontFamily: 'Plus Jakarta Sans, sans-serif' }}>
 
-      {/* ── Hero ─────────────────────────────────────── */}
+      {/* Hero */}
       <div style={{
-        background: 'linear-gradient(135deg, #0f172a 0%, #1e3a8a 60%, #1d4ed8 100%)',
-        padding: '52px 24px 44px',
-        textAlign: 'center',
-        position: 'relative',
-        overflow: 'hidden',
+        background: 'linear-gradient(135deg,#1e3a8a,#1d4ed8 55%,#4338ca)',
+        height: 75, display: 'flex', alignItems: 'center', justifyContent: 'center',
+        padding: '0 28px',
       }}>
-        {/* Decorative circles */}
-        <div style={{
-          position: 'absolute', top: -60, right: -60,
-          width: 220, height: 220, borderRadius: '50%',
-          background: 'rgba(255,255,255,.04)',
-        }} />
-        <div style={{
-          position: 'absolute', bottom: -40, left: -40,
-          width: 160, height: 160, borderRadius: '50%',
-          background: 'rgba(255,255,255,.04)',
-        }} />
-
-        <button
-          onClick={() => navigate(-1)}
-          style={{
-            position: 'absolute', top: 20, left: 24,
-            background: 'rgba(255,255,255,.12)', border: '1px solid rgba(255,255,255,.2)',
-            color: '#fff', borderRadius: 8, padding: '6px 14px',
-            fontSize: 12.5, fontWeight: 600, cursor: 'pointer',
-            fontFamily: 'Plus Jakarta Sans, sans-serif',
-          }}
-        >
-          ← Back
-        </button>
-
-        <div style={{
-          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-          width: 56, height: 56, borderRadius: 16,
-          background: 'rgba(255,255,255,.12)',
-          fontSize: 26, marginBottom: 16,
-        }}>
-          🔒
-        </div>
-
         <h1 style={{
-          fontFamily: 'Lora, serif',
-          fontSize: 'clamp(1.6rem, 4vw, 2.2rem)',
-          fontWeight: 700, color: '#fff',
-          margin: '0 0 10px', letterSpacing: '-.02em',
+          fontFamily: 'Lora, serif', fontSize: '2rem', fontWeight: 600,
+          color: '#fff', margin: 0,
         }}>
           Privacy Policy
         </h1>
-        <p style={{
-          fontSize: 14, color: 'rgba(255,255,255,.65)',
-          maxWidth: 480, margin: '0 auto 18px', lineHeight: 1.6,
-        }}>
-          How {APP_NAME} collects, uses, and protects your data.
-        </p>
-        <div style={{
-          display: 'inline-block',
-          background: 'rgba(255,255,255,.1)',
-          border: '1px solid rgba(255,255,255,.18)',
-          borderRadius: 20, padding: '5px 16px',
-          fontSize: 12, color: 'rgba(255,255,255,.7)',
-        }}>
-          Last updated: {LAST_UPDATED}
-        </div>
       </div>
 
-      {/* ── Content ──────────────────────────────────── */}
-      <div style={{ maxWidth: 780, margin: '0 auto', padding: '32px 20px 0' }}>
+      <div style={{ maxWidth: 780, margin: '0 auto', padding: '32px 20px 60px' }}>
 
-        {/* Intro card */}
+        {/* Last updated + intro */}
         <div style={{
           background: '#fff', border: '1px solid #e2e8f0',
           borderRadius: 12, padding: '20px 22px', marginBottom: 24,
           boxShadow: '0 1px 4px rgba(15,23,42,.07)',
           borderLeft: '4px solid #2563eb',
         }}>
+          <div style={{ fontSize: 11.5, color: '#94a3b8', marginBottom: 10 }}>
+            Last updated: {LAST_UPDATED}
+          </div>
           <p style={{ fontSize: 13.5, color: '#475569', lineHeight: 1.8, margin: 0 }}>
             At <strong style={{ color: '#0f172a' }}>{APP_NAME}</strong>, we take your privacy
             seriously. This policy explains what data we collect when you use our IELTS listening
@@ -231,19 +174,15 @@ export default function PrivacyPolicyPage() {
 
         {/* Sections */}
         {SECTIONS.map((section, si) => (
-          <div
-            key={section.title}
-            style={{
-              background: '#fff', border: '1px solid #e2e8f0',
-              borderRadius: 12, marginBottom: 14, overflow: 'hidden',
-              boxShadow: '0 1px 3px rgba(15,23,42,.06)',
-            }}
-          >
+          <div key={section.title} style={{
+            background: '#fff', border: '1px solid #e2e8f0',
+            borderRadius: 12, marginBottom: 14, overflow: 'hidden',
+            boxShadow: '0 1px 3px rgba(15,23,42,.06)',
+          }}>
             {/* Section header */}
             <div style={{
               display: 'flex', alignItems: 'center', gap: 10,
-              padding: '14px 20px',
-              borderBottom: '1px solid #f1f5f9',
+              padding: '14px 20px', borderBottom: '1px solid #f1f5f9',
               background: '#fafbfc',
             }}>
               <div style={{
@@ -265,18 +204,13 @@ export default function PrivacyPolicyPage() {
             {/* Sub-sections */}
             <div style={{ padding: '4px 0 8px' }}>
               {section.content.map((item, ii) => (
-                <div
-                  key={item.subtitle}
-                  style={{
-                    padding: '12px 20px',
-                    borderBottom: ii < section.content.length - 1
-                      ? '1px solid #f8fafc' : 'none',
-                  }}
-                >
+                <div key={item.subtitle} style={{
+                  padding: '12px 20px',
+                  borderBottom: ii < section.content.length - 1 ? '1px solid #f8fafc' : 'none',
+                }}>
                   <div style={{
-                    fontSize: 12.5, fontWeight: 700,
-                    color: '#2563eb', marginBottom: 5,
-                    display: 'flex', alignItems: 'center', gap: 6,
+                    fontSize: 12.5, fontWeight: 700, color: '#2563eb',
+                    marginBottom: 5, display: 'flex', alignItems: 'center', gap: 6,
                   }}>
                     <span style={{
                       width: 5, height: 5, borderRadius: '50%',
@@ -284,10 +218,7 @@ export default function PrivacyPolicyPage() {
                     }} />
                     {item.subtitle}
                   </div>
-                  <p style={{
-                    fontSize: 13, color: '#475569',
-                    lineHeight: 1.75, margin: 0,
-                  }}>
+                  <p style={{ fontSize: 13, color: '#475569', lineHeight: 1.75, margin: 0 }}>
                     {item.text}
                   </p>
                 </div>
@@ -304,17 +235,13 @@ export default function PrivacyPolicyPage() {
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
             <div style={{
-              width: 34, height: 34, borderRadius: 9,
-              background: '#ecfdf5',
+              width: 34, height: 34, borderRadius: 9, background: '#ecfdf5',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               fontSize: 16, flexShrink: 0,
             }}>
               📬
             </div>
-            <h2 style={{
-              fontFamily: 'Lora, serif', fontSize: 15,
-              fontWeight: 700, color: '#0f172a', margin: 0,
-            }}>
+            <h2 style={{ fontFamily: 'Lora, serif', fontSize: 15, fontWeight: 700, color: '#0f172a', margin: 0 }}>
               Contact Us
             </h2>
           </div>
@@ -328,8 +255,7 @@ export default function PrivacyPolicyPage() {
               display: 'inline-flex', alignItems: 'center', gap: 8,
               background: '#eff4ff', border: '1px solid #bfdbfe',
               borderRadius: 8, padding: '9px 16px',
-              fontSize: 13, fontWeight: 600, color: '#2563eb',
-              textDecoration: 'none',
+              fontSize: 13, fontWeight: 600, color: '#2563eb', textDecoration: 'none',
             }}
           >
             ✉️ {CONTACT_EMAIL}
@@ -338,37 +264,22 @@ export default function PrivacyPolicyPage() {
 
         {/* CTA */}
         <div style={{
-          borderRadius: 14,
-          background: 'linear-gradient(135deg,#0f172a,#1e3a8a)',
-          padding: '28px 24px', textAlign: 'center',
-          position: 'relative', overflow: 'hidden',
+          background: 'linear-gradient(135deg,#1e3a8a,#4338ca)',
+          borderRadius: 14, padding: '28px', textAlign: 'center',
         }}>
-          <div style={{
-            position: 'absolute', top: -40, right: -40,
-            width: 140, height: 140, borderRadius: '50%',
-            background: 'rgba(255,255,255,.05)',
-          }} />
-          <div style={{
-            fontFamily: 'Lora, serif', fontSize: 18,
-            fontWeight: 700, color: '#fff', marginBottom: 8,
-          }}>
+          <h3 style={{ fontFamily: 'Lora,serif', fontSize: '1.1rem', fontWeight: 600, color: '#fff', marginBottom: 8 }}>
             Ready to start practising?
-          </div>
-          <p style={{ fontSize: 13, color: 'rgba(255,255,255,.65)', marginBottom: 18 }}>
+          </h3>
+          <p style={{ color: 'rgba(255,255,255,.72)', fontSize: 13.5, marginBottom: 18 }}>
             100 free IELTS-style listening tests. No credit card required.
           </p>
           <button
             onClick={() => navigate('/')}
             style={{
-              padding: '10px 26px', borderRadius: 9, border: 'none',
-              background: '#fff', color: '#1e3a8a',
-              fontSize: 13.5, fontWeight: 700, cursor: 'pointer',
-              fontFamily: 'Plus Jakarta Sans, sans-serif',
-              boxShadow: '0 4px 14px rgba(0,0,0,.2)',
-              transition: 'all .16s',
+              padding: '11px 28px', borderRadius: 8, border: 'none',
+              background: '#fff', color: '#1d4ed8', fontSize: 14, fontWeight: 700,
+              cursor: 'pointer', fontFamily: 'Plus Jakarta Sans, sans-serif',
             }}
-            onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-1px)'}
-            onMouseLeave={e => e.currentTarget.style.transform = 'none'}
           >
             Browse All Tests →
           </button>
