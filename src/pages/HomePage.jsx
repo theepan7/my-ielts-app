@@ -95,7 +95,7 @@ export default function HomePage({ onAuthClick, showToast }) {
             color: 'rgba(255,255,255,.85)', borderRadius: 20, padding: '4px 14px',
             fontSize: 11.5, fontWeight: 500, marginBottom: 10,
           }}>
-            ✦ 100 Full-Length Practice Tests
+            ✦ 100+ Full-Length Practice Tests
           </div>
           <h1 style={{
             fontFamily: 'Lora, serif', fontSize: '2.1rem', fontWeight: 600,
@@ -107,7 +107,7 @@ export default function HomePage({ onAuthClick, showToast }) {
             Authentic recordings · Real exam questions · Instant band score results
           </p>
           <div style={{ display: 'flex', justifyContent: 'center', gap: 32, flexWrap: 'wrap' }}>
-            {[['100','Tests Available'],['4,000+','Questions'],['9.0','Max Band']].map(([n, l]) => (
+            {[['100+','Tests Available'],['4,000+','Questions'],['9.0','Max Band'],['50K','Active Students'],].map(([n, l]) => (
               <div key={l} style={{ textAlign: 'center' }}>
                 <div style={{ fontFamily: 'Lora,serif', fontSize: '1.4rem', fontWeight: 700, color: '#fff' }}>{n}</div>
                 <div style={{ fontSize: 11, color: 'rgba(255,255,255,.6)', marginTop: 2 }}>{l}</div>
