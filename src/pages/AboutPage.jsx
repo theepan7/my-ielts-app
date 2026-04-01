@@ -88,21 +88,7 @@ export default function AboutPage() {
 
       <div style={{ maxWidth: 900, margin: '0 auto', padding: '40px 22px 60px' }}>
 
-        {/* Stats */}
-        <div style={{
-          background: '#fff', border: '1px solid #e2e8f0', borderRadius: 14,
-          padding: '20px 28px', marginBottom: 32,
-          boxShadow: '0 1px 3px rgba(15,23,42,.07)',
-          display: 'flex', justifyContent: 'center', gap: 40, flexWrap: 'wrap',
-        }}>
-          {STATS.map(s => (
-            <div key={s.l} style={{ textAlign: 'center' }}>
-              <div style={{ fontFamily: 'Lora,serif', fontSize: '1.6rem', fontWeight: 700, color: '#1d4ed8' }}>{s.n}</div>
-              <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>{s.l}</div>
-            </div>
-          ))}
-        </div>
-
+        
         {/* Mission */}
         <div style={{
           background: '#fff', border: '1px solid #e2e8f0', borderRadius: 14,
