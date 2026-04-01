@@ -4,9 +4,9 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import {
   fetchTests, fetchUserCompletedTests,
-  fetchLeaderboard, fetchUserRank
 } from '../firebase/services'
 import Leaderboard from '../components/Leaderboard'
+import UserProgress from '../components/UserProgress'
 
 const diffStyle = d =>
   d === 'Advanced'    ? { color: '#dc2626' } :
@@ -25,7 +25,6 @@ export default function HomePage({ onAuthClick, showToast }) {
   const [filtered,  setFiltered]  = useState([])
   const [completed, setCompleted] = useState([])
   const [loading,   setLoading]   = useState(true)
-  const [userRank,  setUserRank]  = useState(null)
   const [search,    setSearch]    = useState('')
   const [diff,      setDiff]      = useState('')
   const [status,    setStatus]    = useState('')
@@ -42,9 +41,8 @@ export default function HomePage({ onAuthClick, showToast }) {
 
   // ── Load user progress ──────────────────────────────────
   useEffect(() => {
-    if (!user) { setCompleted([]); setUserRank(null); return }
+    if (!user) { setCompleted([]); return }
     fetchUserCompletedTests(user.uid).then(setCompleted).catch(() => {})
-    fetchUserRank(user.uid).then(setUserRank).catch(() => {})
   }, [user])
 
   // ── Filter ──────────────────────────────────────────────
@@ -92,92 +90,40 @@ export default function HomePage({ onAuthClick, showToast }) {
     <div style={{ background: '#f4f6fb', minHeight: '100vh' }}>
 
       {/* ── HERO ── */}
-  <div style={{
-  background: 'linear-gradient(135deg,#1e3a8a,#1d4ed8 55%,#4338ca)',
-  padding: '28px 20px 26px',
-  textAlign: 'center',
-  position: 'relative',
-  overflow: 'hidden',
-}}>
-  <div style={{
-    position: 'absolute',
-    inset: 0,
-    background: 'radial-gradient(ellipse at 25% 60%,rgba(255,255,255,.05),transparent 60%)'
-  }} />
-
-  <div style={{ maxWidth: 460, margin: '0 auto', position: 'relative', zIndex: 1 }}>
-
-    {/* Badge */}
-    <div style={{
-      display: 'inline-flex',
-      alignItems: 'center',
-      gap: 6,
-      background: 'rgba(255,255,255,.12)',
-      border: '1px solid rgba(255,255,255,.18)',
-      color: 'rgba(255,255,255,.85)',
-      borderRadius: 20,
-      padding: '3px 12px',
-      fontSize: 11,
-      fontWeight: 500,
-      marginBottom: 10,
-    }}>
-      ✦ Updated for 2026 Exams
-    </div>
-
-    {/* Title */}
-    <h1 style={{
-      fontFamily: 'Lora, serif',
-      fontSize: '1.6rem',
-      fontWeight: 600,
-      color: '#fff',
-      lineHeight: 1.25,
-      marginBottom: 6,
-    }}>
-      Master Your IELTS Listening
-    </h1>
-
-    {/* Subtitle */}
-    <p style={{
-      color: 'rgba(255,255,255,.7)',
-      fontSize: 13,
-      marginBottom: 16,
-    }}>
-      Practice with real exam simulations and hit Band 8.0+ faster
-    </p>
-
-    {/* Stats (more compact) */}
-    <div style={{
-      display: 'flex',
-      justifyContent: 'center',
-      gap: 20,
-      flexWrap: 'wrap'
-    }}>
-      {[['120+','Full Tests'],['Free','Access'],['98%','Success Rate'],['5000+','Active Students']].map(([n, l]) => (
-        <div key={l} style={{ textAlign: 'center' }}>
+      <div style={{
+        background: 'linear-gradient(135deg,#1e3a8a,#1d4ed8 55%,#4338ca)',
+        padding: '48px 28px 44px', textAlign: 'center', position: 'relative', overflow: 'hidden',
+      }}>
+        <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse at 25% 60%,rgba(255,255,255,.06),transparent 55%)' }} />
+        <div style={{ maxWidth: 560, margin: '0 auto', position: 'relative', zIndex: 1 }}>
           <div style={{
-            fontFamily: 'Lora,serif',
-            fontSize: '1.1rem',
-            fontWeight: 700,
-            color: '#fff'
+            display: 'inline-flex', alignItems: 'center', gap: 6,
+            background: 'rgba(255,255,255,.12)', border: '1px solid rgba(255,255,255,.2)',
+            color: 'rgba(255,255,255,.85)', borderRadius: 20, padding: '4px 14px',
+            fontSize: 11.5, fontWeight: 500, marginBottom: 14,
           }}>
-            {n}
+            ✦ 100 Full-Length Practice Tests
           </div>
-          <div style={{
-            fontSize: 10.5,
-            color: 'rgba(255,255,255,.6)',
-            marginTop: 1
+          <h1 style={{
+            fontFamily: 'Lora, serif', fontSize: '2.1rem', fontWeight: 600,
+            color: '#fff', lineHeight: 1.2, marginBottom: 8,
           }}>
-            {l}
+            Master IELTS Listening
+          </h1>
+          <p style={{ color: 'rgba(255,255,255,.72)', fontSize: 14, marginBottom: 24 }}>
+            Authentic recordings · Real exam questions · Instant band score results
+          </p>
+          <div style={{ display: 'flex', justifyContent: 'center', gap: 32, flexWrap: 'wrap' }}>
+            {[['100','Tests Available'],['4,000+','Questions'],['9.0','Max Band']].map(([n, l]) => (
+              <div key={l} style={{ textAlign: 'center' }}>
+                <div style={{ fontFamily: 'Lora,serif', fontSize: '1.4rem', fontWeight: 700, color: '#fff' }}>{n}</div>
+                <div style={{ fontSize: 11, color: 'rgba(255,255,255,.6)', marginTop: 2 }}>{l}</div>
+              </div>
+            ))}
           </div>
         </div>
-      ))}
-    </div>
+      </div>
 
-  </div>
-</div>
-  
-
-    
       {/* ── MAIN CONTENT ── */}
       <div style={{
         maxWidth: 1240, margin: '0 auto', padding: '24px 20px',
@@ -295,94 +241,8 @@ export default function HomePage({ onAuthClick, showToast }) {
 
         {/* RIGHT — sidebar */}
         <aside style={{ display: 'flex', flexDirection: 'column', gap: 14, position: 'sticky', top: 80 }}>
-
-          {/* Leaderboard */}
           <Leaderboard />
-
-          {/* Progress / Signup wall */}
-          {!user ? (
-            <div style={{
-              background: '#fff', border: '1px solid #e2e8f0',
-              borderRadius: 12, padding: 16, textAlign: 'center',
-              boxShadow: '0 1px 3px rgba(15,23,42,.07)',
-            }}>
-              <div style={{ fontSize: 26, marginBottom: 8 }}>🔓</div>
-              <h3 style={{ fontFamily: 'Lora,serif', fontSize: '.95rem', fontWeight: 600, marginBottom: 6, color: '#0f172a' }}>
-                Unlock All 100 Tests
-              </h3>
-              <p style={{ color: '#475569', fontSize: 12, lineHeight: 1.65, marginBottom: 14 }}>
-                Sign up free to access the full test library, track your progress, and appear on the global leaderboard.
-              </p>
-              <button onClick={() => onAuthClick('signup')} style={{
-                width: '100%', padding: 9, borderRadius: 7,
-                background: '#2563eb', color: '#fff', fontSize: 13,
-                fontWeight: 600, cursor: 'pointer', border: 'none', marginBottom: 7,
-                fontFamily: 'Plus Jakarta Sans, sans-serif',
-              }}>
-                Create Free Account
-              </button>
-              <button onClick={() => onAuthClick('login')} style={{
-                width: '100%', padding: 9, borderRadius: 7,
-                background: 'transparent', color: '#475569', fontSize: 13,
-                fontWeight: 600, cursor: 'pointer',
-                border: '1.5px solid #e2e8f0',
-                fontFamily: 'Plus Jakarta Sans, sans-serif',
-              }}>
-                I already have an account
-              </button>
-              <p style={{ fontSize: 10.5, color: '#94a3b8', marginTop: 6 }}>No credit card required</p>
-            </div>
-          ) : (
-            <div style={{
-              background: '#fff', border: '1px solid #e2e8f0',
-              borderRadius: 12, padding: 16,
-              boxShadow: '0 1px 3px rgba(15,23,42,.07)',
-            }}>
-              <div style={{ fontSize: 10.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.07em', color: '#94a3b8', marginBottom: 12 }}>
-                📊 Your Progress
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}>
-                {/* Ring */}
-                <svg width="72" height="72" style={{ flexShrink: 0 }}>
-                  <circle cx="36" cy="36" r={R} fill="none" stroke="#f1f5f9" strokeWidth="6" />
-                  <circle cx="36" cy="36" r={R} fill="none"
-                    stroke="url(#pg)" strokeWidth="6" strokeLinecap="round"
-                    strokeDasharray={C.toFixed(1)} strokeDashoffset={offset.toFixed(1)}
-                    style={{ transform: 'rotate(-90deg)', transformOrigin: '36px 36px', transition: 'stroke-dashoffset .7s' }}
-                  />
-                  <defs>
-                    <linearGradient id="pg" x1="0%" y1="0%" x2="100%" y2="0%">
-                      <stop offset="0%" stopColor="#2563eb" />
-                      <stop offset="100%" stopColor="#7c3aed" />
-                    </linearGradient>
-                  </defs>
-                  <text x="36" y="41" textAnchor="middle" fill="#0f172a" fontSize="12" fontWeight="700" fontFamily="Plus Jakarta Sans">
-                    {pct}%
-                  </text>
-                </svg>
-                <div>
-                  <div style={{ fontSize: 10.5, color: '#94a3b8', marginBottom: 2 }}>Tests Completed</div>
-                  <div style={{ fontSize: '1.05rem', fontWeight: 700, color: '#0f172a' }}>
-                    {done}<span style={{ fontSize: 12, color: '#94a3b8', fontWeight: 400 }}> / {total}</span>
-                  </div>
-                  <div style={{ fontSize: 10.5, color: '#94a3b8', marginTop: 8, marginBottom: 2 }}>Your Rank</div>
-                  <div style={{ fontSize: '1.05rem', fontWeight: 700, color: '#d97706' }}>
-                    {userRank ? `#${userRank.rank}` : '—'}
-                  </div>
-                </div>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10.5, color: '#94a3b8', marginBottom: 4 }}>
-                <span>Overall Progress</span><span>{done}/{total}</span>
-              </div>
-              <div style={{ height: 5, background: '#f1f5f9', borderRadius: 3 }}>
-                <div style={{
-                  width: `${pct}%`, height: '100%',
-                  background: 'linear-gradient(90deg,#2563eb,#7c3aed)',
-                  borderRadius: 3, transition: 'width .7s',
-                }} />
-              </div>
-            </div>
-          )}
+          <UserProgress onAuthClick={onAuthClick} totalTests={allTests.length || 100} />
         </aside>
       </div>
     </div>
