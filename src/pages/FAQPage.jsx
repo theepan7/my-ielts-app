@@ -163,32 +163,34 @@ export default function FAQPage() {
       {/* Hero */}
       <div style={{
         background: 'linear-gradient(135deg,#1e3a8a,#1d4ed8 55%,#4338ca)',
-        padding: '52px 28px 48px', textAlign: 'center',
+        height: 75, display: 'flex', alignItems: 'center', justifyContent: 'center',
+        padding: '0 28px',
       }}>
-        <div style={{ fontSize: 44, marginBottom: 14 }}>❓</div>
-        <h1 style={{ fontFamily: 'Lora,serif', fontSize: '2rem', fontWeight: 600, color: '#fff', marginBottom: 10 }}>
+        <h1 style={{
+          fontFamily: 'Lora, serif', fontSize: '2rem', fontWeight: 600,
+          color: '#fff', margin: 0,
+        }}>
           Frequently Asked Questions
         </h1>
-        <p style={{ color: 'rgba(255,255,255,.72)', fontSize: 14, maxWidth: 500, margin: '0 auto 22px' }}>
-          Everything you need to know about the IELTS Listening test and this platform.
-        </p>
+      </div>
+
+      <div style={{ maxWidth: 800, margin: '0 auto', padding: '36px 22px 60px' }}>
+
         {/* Search */}
-        <div style={{ maxWidth: 440, margin: '0 auto' }}>
+        <div style={{ marginBottom: 28 }}>
           <input
             value={search}
             onChange={e => setSearch(e.target.value)}
             placeholder="🔍  Search questions…"
             style={{
               width: '100%', padding: '12px 18px', borderRadius: 10,
-              border: '1px solid rgba(255,255,255,.3)', background: 'rgba(255,255,255,.15)',
-              color: '#fff', fontSize: 14, outline: 'none',
+              border: '1px solid #e2e8f0', background: '#fff',
+              color: '#0f172a', fontSize: 14, outline: 'none',
               fontFamily: 'Plus Jakarta Sans, sans-serif',
+              boxSizing: 'border-box',
             }}
           />
         </div>
-      </div>
-
-      <div style={{ maxWidth: 800, margin: '0 auto', padding: '36px 22px 60px' }}>
 
         {filtered.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '48px', color: '#94a3b8' }}>
