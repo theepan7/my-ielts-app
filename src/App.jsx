@@ -5,6 +5,10 @@ import HomePage          from './pages/HomePage'
 import TestPage          from './pages/TestPage'
 import ResultPage        from './pages/ResultPage'
 import BandScorePage     from './pages/BandScorePage'
+import AboutPage         from './pages/AboutPage'
+import FAQPage           from './pages/FAQPage'
+import ListeningTipsPage from './pages/ListeningTipsPage'
+import StudyPlansPage    from './pages/StudyPlansPage'
 import PrivacyPolicyPage from './pages/PrivacyPolicyPage'
 import TermsOfUsePage    from './pages/TermsOfUsePage'
 import AuthModal         from './components/AuthModal'
@@ -31,7 +35,6 @@ export default function App() {
         onAuthClick={setAuthModal}
         onContactClick={() => setContactOpen(true)}
       />
-
       <main className={isTestPage ? 'block' : 'flex-1'}>
         <Routes>
           <Route path="/"
@@ -46,6 +49,18 @@ export default function App() {
           <Route path="/band-score-guide"
             element={<BandScorePage />}
           />
+          <Route path="/about"
+            element={<AboutPage />}
+          />
+          <Route path="/faq"
+            element={<FAQPage />}
+          />
+          <Route path="/listening-tips"
+            element={<ListeningTipsPage />}
+          />
+          <Route path="/study-plans"
+            element={<StudyPlansPage />}
+          />
           <Route path="/privacy"
             element={<PrivacyPolicyPage />}
           />
@@ -54,9 +69,7 @@ export default function App() {
           />
         </Routes>
       </main>
-
       <Footer onContactClick={() => setContactOpen(true)} />
-
       {authModal && (
         <AuthModal
           mode={authModal}
