@@ -10,7 +10,6 @@ import FAQPage           from './pages/FAQPage'
 import ListeningTipsPage from './pages/ListeningTipsPage'
 import StudyPlansPage    from './pages/StudyPlansPage'
 import PrivacyPolicyPage from './pages/PrivacyPolicyPage'
-import TermsOfUsePage    from './pages/TermsOfUsePage'
 import AuthModal         from './components/AuthModal'
 import ContactModal      from './components/ContactModal'
 import Toast             from './components/Toast'
@@ -64,10 +63,7 @@ export default function App() {
           <Route path="/privacy"
             element={<PrivacyPolicyPage />}
           />
-          <Route path="/terms"
-            element={<TermsOfUsePage />}
-          />
-        </Routes>
+         </Routes>
       </main>
       <Footer onContactClick={() => setContactOpen(true)} />
       {authModal && (
