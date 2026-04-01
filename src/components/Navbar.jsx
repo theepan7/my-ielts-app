@@ -92,7 +92,7 @@ export default function Navbar({ onAuthClick, onContactClick }) {
   const navigate         = useNavigate()
 
   const practiceItems = [
-    { label: 'All 100 Tests', desc: 'Browse the complete test library', icon: '📋', iconBg: '#eff4ff', action: () => navigate('/') },
+    { label: 'All Tests', desc: 'Browse the complete test library', icon: '📋', iconBg: '#eff4ff', action: () => navigate('/') },
   ]
 
   const resourceItems = [
