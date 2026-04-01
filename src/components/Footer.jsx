@@ -16,19 +16,19 @@ export default function Footer({ onContactClick }) {
     {
       title: 'Resources',
       links: [
-        { label: 'Band Score Guide',    action: () => {} },
-        { label: 'Listening Tips',      action: () => {} },
-        { label: 'Study Plans',         action: () => {} },
-        { label: 'FAQ',                 action: () => {} },
+        { label: 'Band Score Guide',    action: () => navigate('/band-score')    },
+        { label: 'Listening Tips',      action: () => navigate('/listening-tips') },
+        { label: 'Study Plans',         action: () => navigate('/study-plans')   },
+        { label: 'FAQ',                 action: () => navigate('/faq')           },
       ],
     },
     {
       title: 'Company',
       links: [
-        { label: 'About Us',       action: () => {}          },
-        { label: 'Contact Us',     action: onContactClick    },
-        { label: 'Privacy Policy', action: () => {}          },
-        { label: 'Terms of Use',   action: () => {}          },
+        { label: 'About Us',       action: () => navigate('/about')  },
+        { label: 'Contact Us',     action: onContactClick            },
+        { label: 'Privacy Policy', action: () => navigate('/privacy') },
+        { label: 'Terms of Use',   action: () => navigate('/terms')  },
       ],
     },
   ]
