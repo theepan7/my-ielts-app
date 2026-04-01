@@ -36,7 +36,7 @@ export default function UserProgress({ onAuthClick, totalTests = 100 }) {
           fontFamily: 'Lora,serif', fontSize: '.95rem',
           fontWeight: 600, marginBottom: 6, color: '#0f172a',
         }}>
-          Unlock All 100 Tests
+          Unlock All Tests
         </h3>
         <p style={{ color: '#475569', fontSize: 12, lineHeight: 1.65, marginBottom: 14 }}>
           Sign up free to access the full test library, track your progress and appear on the leaderboard.
