@@ -78,7 +78,7 @@ export default function AboutPage() {
         padding: '56px 28px 52px', textAlign: 'center', position: 'relative', overflow: 'hidden',
       }}>
         <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse at 30% 60%,rgba(255,255,255,.06),transparent 55%)' }} />
-        <div style={{ position: 'relative', zIndex: 1, maxWidth: 580, margin: '0 auto' }}>
+        <div style={{ position: 'relative', zIndex: 1, maxWidth: 200, margin: '0 auto' }}>
           <div style={{ fontSize: 48, marginBottom: 16 }}></div>
           <h1 style={{
             fontFamily: 'Lora,serif', fontSize: '1.2rem', fontWeight: 300,
