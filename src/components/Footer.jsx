@@ -8,7 +8,7 @@ export default function Footer({ onContactClick }) {
     {
       title: 'Practice',
       links: [
-        { label: 'All 100 Tests', action: () => navigate('/') },
+        { label: 'All Tests', action: () => navigate('/') },
       ],
     },
     {
@@ -26,8 +26,7 @@ export default function Footer({ onContactClick }) {
         { label: 'About Us',       action: () => navigate('/about')   },
         { label: 'Contact Us',     action: onContactClick             },
         { label: 'Privacy Policy', action: () => navigate('/privacy') },
-        { label: 'Terms of Use',   action: () => navigate('/terms')   },
-      ],
+        ],
     },
   ]
 
