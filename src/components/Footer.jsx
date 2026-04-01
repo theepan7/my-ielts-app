@@ -14,7 +14,7 @@ export default function Footer({ onContactClick }) {
     {
       title: 'Resources',
       links: [
-        { label: 'Band Score Guide', action: () => navigate('/band-score')      },
+        { label: 'Band Score Guide', action: () => navigate('/band-score-guide') }, // ← was /band-score
         { label: 'Listening Tips',   action: () => navigate('/listening-tips')  },
         { label: 'Study Plans',      action: () => navigate('/study-plans')     },
         { label: 'FAQ',              action: () => navigate('/faq')             },
