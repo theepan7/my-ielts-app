@@ -1,5 +1,5 @@
 // src/components/Leaderboard.jsx
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useRef } from 'react'
 import { useAuth } from '../context/AuthContext'
 import {
   fetchLeaderboard,
@@ -53,7 +53,7 @@ function LbRow({ entry, index, isMe, showFlag }) {
           display: 'flex', alignItems: 'center', gap: 4,
           whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
         }}>
-          {showFlag && entry.countryFlag && (
+          {showFlag && entry.countryFlag && entry.countryFlag !== '🌍' && (
             <span style={{ fontSize: 13, flexShrink: 0 }}>{entry.countryFlag}</span>
           )}
           <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
@@ -91,14 +91,14 @@ function Skeleton() {
   )
 }
 
-// ── Global rank banner (shown after clicking the CTA) ──────
+// ── Global rank banner ─────────────────────────────────────
 function GlobalRankBanner({ globalRank, totalStudents, onClose }) {
   const motivationMsg =
-    globalRank <= 10   ? '🏆 Incredible — you are in the global top 10!'   :
-    globalRank <= 50   ? '🌟 Amazing — you are in the global top 50!'       :
-    globalRank <= 100  ? '⭐ Great — you are in the global top 100!'        :
-    globalRank <= 500  ? '🔥 You are in the global top 500 — keep going!'   :
-    globalRank <= 1000 ? '💪 You are in the top 1,000 worldwide!'           :
+    globalRank <= 10   ? '🏆 Incredible — you are in the global top 10!'  :
+    globalRank <= 50   ? '🌟 Amazing — you are in the global top 50!'      :
+    globalRank <= 100  ? '⭐ Great — you are in the global top 100!'       :
+    globalRank <= 500  ? '🔥 You are in the global top 500 — keep going!' :
+    globalRank <= 1000 ? '💪 You are in the top 1,000 worldwide!'          :
     '📈 Complete more tests to climb higher in the global ranks!'
 
   return (
@@ -107,14 +107,11 @@ function GlobalRankBanner({ globalRank, totalStudents, onClose }) {
       borderRadius: 10, padding: '16px 16px 14px',
       marginTop: 10, position: 'relative', overflow: 'hidden',
     }}>
-      {/* Background circle decoration */}
       <div style={{
         position: 'absolute', top: -14, right: -14,
         width: 80, height: 80, borderRadius: '50%',
         background: 'rgba(255,255,255,.07)', pointerEvents: 'none',
       }} />
-
-      {/* Close */}
       <button onClick={onClose} style={{
         position: 'absolute', top: 8, right: 8,
         background: 'rgba(255,255,255,.15)', border: 'none',
@@ -122,16 +119,12 @@ function GlobalRankBanner({ globalRank, totalStudents, onClose }) {
         color: '#fff', cursor: 'pointer', fontSize: 10,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
       }}>✕</button>
-
-      {/* Label */}
       <div style={{
         fontSize: 10, color: 'rgba(255,255,255,.65)',
         textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 6,
       }}>
         🌍 Your Global Standing
       </div>
-
-      {/* Big rank number */}
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 5 }}>
         <span style={{
           fontFamily: 'Lora, serif', fontSize: '2rem',
@@ -145,8 +138,6 @@ function GlobalRankBanner({ globalRank, totalStudents, onClose }) {
           </span>
         )}
       </div>
-
-      {/* Motivational message */}
       <p style={{ fontSize: 11.5, color: 'rgba(255,255,255,.8)', margin: 0, lineHeight: 1.5 }}>
         {motivationMsg}
       </p>
@@ -158,11 +149,15 @@ function GlobalRankBanner({ globalRank, totalStudents, onClose }) {
 export default function Leaderboard() {
   const { user } = useAuth()
 
-  const [view,           setView]           = useState('loading')
+  // Tracks whether the initial load has completed.
+  // Background refreshes (interval / manual ↻) must NEVER reset view or showBanner —
+  // those are user-controlled state after the first load.
+  const initialLoadDone = useRef(false)
+
+  const [view,           setView]           = useState('global')
   const [globalEntries,  setGlobalEntries]  = useState([])
   const [countryEntries, setCountryEntries] = useState([])
   const [userRankData,   setUserRankData]   = useState(null)
-  const [totalStudents,  setTotalStudents]  = useState(null)
   const [loading,        setLoading]        = useState(true)
   const [showBanner,     setShowBanner]     = useState(false)
 
@@ -170,44 +165,48 @@ export default function Leaderboard() {
   const countryCode = userRankData?.countryCode || ''
   const countryName = userRankData?.countryName || ''
   const countryFlag = userRankData?.countryFlag || ''
-  const hasCountry  = !!countryCode
+  const hasCountry  = isLoggedIn && countryCode.length > 0
 
-  async function load() {
-    setLoading(true)
+  async function load(isInitial = false) {
     try {
-      const [global, ur] = await Promise.all([
-        fetchLeaderboard(),
-        isLoggedIn ? fetchUserRank(user.uid) : Promise.resolve(null),
-      ])
-
+      // Always refresh the data arrays
+      const global = await fetchLeaderboard()
       setGlobalEntries(global)
-      setUserRankData(ur)
 
-      // Approximate total students
-      if (ur?.globalRank) {
-        setTotalStudents(Math.max(ur.globalRank + 10, global.length + 10))
-      }
-
-      if (isLoggedIn && ur?.countryCode) {
-        // Logged in + has country → show country by default
-        const country = await fetchCountryLeaderboard(ur.countryCode)
-        setCountryEntries(country)
-        setView('country')
+      if (isLoggedIn) {
+        const ur = await fetchUserRank(user.uid)
+        setUserRankData(ur)
+        if (ur?.countryCode) {
+          const countryList = await fetchCountryLeaderboard(ur.countryCode)
+          setCountryEntries(countryList)
+        }
+        // Only set view on initial load — never override user's manual choice
+        if (isInitial) {
+          setView(ur?.countryCode ? 'country' : 'global')
+        }
       } else {
-        // Guest or no country → show global
-        setView('global')
+        setUserRankData(null)
+        if (isInitial) setView('global')
       }
     } catch (err) {
-      console.error('Leaderboard error:', err)
-      setView('global')
+      console.error('Leaderboard load error:', err)
+      if (isInitial) setView('global')
     } finally {
-      setLoading(false)
+      if (isInitial) {
+        setLoading(false)
+        initialLoadDone.current = true
+      }
     }
   }
 
   useEffect(() => {
-    load()
-    const interval = setInterval(load, 60000)
+    // Reset everything when user changes (login / logout)
+    initialLoadDone.current = false
+    setLoading(true)
+    setShowBanner(false)
+    load(true)
+
+    const interval = setInterval(() => load(false), 60_000)
     return () => clearInterval(interval)
   }, [user?.uid])
 
@@ -220,6 +219,7 @@ export default function Leaderboard() {
       borderRadius: 12, padding: 16,
       boxShadow: '0 1px 3px rgba(15,23,42,.07)',
     }}>
+
       {/* ── Header ── */}
       <div style={{
         display: 'flex', justifyContent: 'space-between',
@@ -234,7 +234,8 @@ export default function Leaderboard() {
             ? `${countryFlag} ${countryName} Ranking`
             : 'Global Leaderboard'}
         </span>
-        <button onClick={load} style={{
+        {/* Manual refresh: data only — never resets view */}
+        <button onClick={() => load(false)} style={{
           background: 'none', border: 'none', cursor: 'pointer',
           fontSize: 11, color: '#2563eb', fontWeight: 600,
           fontFamily: 'Plus Jakarta Sans, sans-serif',
@@ -244,7 +245,6 @@ export default function Leaderboard() {
       {/* ── Content ── */}
       {loading ? <Skeleton /> : (
         <>
-          {/* Entries list */}
           {entries.length === 0 ? (
             <p style={{
               fontSize: 12, color: '#94a3b8',
@@ -318,19 +318,17 @@ export default function Leaderboard() {
             </button>
           )}
 
-          {/* ── Global view: rank banner + back button ── */}
+          {/* ── Global view: rank banner + back to country ── */}
           {view === 'global' && (
             <>
-              {/* Show banner if logged in and has a global rank */}
               {isLoggedIn && showBanner && userRankData?.globalRank && (
                 <GlobalRankBanner
                   globalRank={userRankData.globalRank}
-                  totalStudents={totalStudents}
+                  totalStudents={userRankData.totalStudents}
                   onClose={() => setShowBanner(false)}
                 />
               )}
 
-              {/* Back to country button (only if logged in and has country) */}
               {isLoggedIn && hasCountry && (
                 <button
                   onClick={() => { setView('country'); setShowBanner(false) }}
