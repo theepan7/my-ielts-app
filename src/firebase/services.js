@@ -3,7 +3,6 @@ import {
   collection, doc, getDoc, getDocs,
   addDoc, query, orderBy, limit,
   where, serverTimestamp, runTransaction,
-  getCountFromServer
 } from 'firebase/firestore'
 import { db } from './config'
 
@@ -48,6 +47,7 @@ export async function fetchTestWithQuestions(testDocId) {
 //  - Every attempt saved to /results
 //  - Progress counts UNIQUE tests only
 //  - Average uses BEST score per test
+//  - Country fields are ALWAYS preserved on update
 // ─────────────────────────────────────────────────────────
 
 export async function saveResult(
@@ -69,6 +69,8 @@ export async function saveResult(
     const lbSnap = await tx.get(lbRef)
 
     if (!lbSnap.exists()) {
+      // First ever result — no country info available here, set empty
+      // (country is set during signup via AuthContext)
       tx.set(lbRef, {
         userId, userName,
         testsCompleted:  1,
@@ -78,6 +80,8 @@ export async function saveResult(
         avgBand:         band,
         bestBand:        band,
         bestScore:       correct,
+        // Country fields intentionally left empty here —
+        // they are written during signup in AuthContext
         countryCode:     '',
         countryName:     '',
         countryFlag:     '🌍',
@@ -96,11 +100,9 @@ export async function saveResult(
         ? { ...bestScores, [key]: newBest }
         : bestScores
 
-      // Progress: unique tests only
       const newCount      = alreadyDone ? d.testsCompleted : d.testsCompleted + 1
       const newUniqueDone = alreadyDone ? uniqueDone : [...uniqueDone, testId]
 
-      // Average: sum of best scores / unique count
       const totalBest = Object.values(newBestScores).reduce((s, v) => s + v, 0)
       const newAvg    = parseFloat((totalBest / newUniqueDone.length).toFixed(1))
 
@@ -113,6 +115,10 @@ export async function saveResult(
         bestBand:        parseFloat(band) > parseFloat(d.bestBand || '0') ? band : d.bestBand,
         bestScore:       Math.max(d.bestScore || 0, correct),
         lastPlayed:      serverTimestamp(),
+        // ✅ Preserve country fields — never overwrite them on score update
+        countryCode:     d.countryCode || '',
+        countryName:     d.countryName || '',
+        countryFlag:     d.countryFlag || '🌍',
       })
     }
   })
@@ -147,7 +153,9 @@ export async function fetchCountryLeaderboard(countryCode) {
 }
 
 // ─────────────────────────────────────────────────────────
-//  USER RANK — global + country + total student count
+//  USER RANK — global + country
+//  Fixed: reads user doc first, then counts higher-ranked
+//  users. Returns null only if user has NO leaderboard doc.
 // ─────────────────────────────────────────────────────────
 
 export async function fetchUserRank(userId) {
@@ -157,30 +165,34 @@ export async function fetchUserRank(userId) {
   const data    = userSnap.data()
   const userAvg = data.avgScore || 0
 
-  // Run all count queries in parallel
-  const [globalHigher, countryHigher, totalSnap] = await Promise.all([
-    // How many users have a HIGHER avgScore globally
-    getDocs(query(
-      collection(db, 'leaderboard'),
-      where('avgScore', '>', userAvg)
-    )),
-    // How many users in same country have a HIGHER avgScore
-    data.countryCode
-      ? getDocs(query(
-          collection(db, 'leaderboard'),
-          where('countryCode', '==', data.countryCode),
-          where('avgScore',    '>',  userAvg)
-        ))
-      : Promise.resolve({ size: 0 }),
-    // Total number of leaderboard entries = total registered users with scores
-    getDocs(collection(db, 'leaderboard')),
-  ])
+  // Total students = all leaderboard docs
+  const allSnap = await getDocs(collection(db, 'leaderboard'))
+  const total   = allSnap.size
+
+  // Count how many users score strictly higher (globally)
+  const globalHigherSnap = await getDocs(
+    query(collection(db, 'leaderboard'), where('avgScore', '>', userAvg))
+  )
+  const globalRank = globalHigherSnap.size + 1
+
+  // Count how many users in same country score strictly higher
+  let countryRank = null
+  if (data.countryCode) {
+    const countryHigherSnap = await getDocs(
+      query(
+        collection(db, 'leaderboard'),
+        where('countryCode', '==', data.countryCode),
+        where('avgScore',    '>',  userAvg)
+      )
+    )
+    countryRank = countryHigherSnap.size + 1
+  }
 
   return {
     ...data,
-    globalRank:   globalHigher.size + 1,
-    countryRank:  countryHigher.size + 1,
-    totalStudents: totalSnap.size,
+    globalRank,
+    countryRank,
+    totalStudents: total,
   }
 }
 
@@ -189,7 +201,6 @@ export async function fetchUserRank(userId) {
 // ─────────────────────────────────────────────────────────
 
 export async function fetchUserCompletedTests(userId) {
-  // Primary: read from leaderboard doc (fast single read)
   try {
     const lbSnap = await getDoc(doc(db, 'leaderboard', userId))
     if (lbSnap.exists() && lbSnap.data().uniqueTestsDone?.length) {
@@ -197,14 +208,12 @@ export async function fetchUserCompletedTests(userId) {
     }
   } catch (_) {}
 
-  // Fallback: deduplicate from results collection
   const snap = await getDocs(
     query(collection(db, 'results'), where('userId', '==', userId))
   )
   return [...new Set(snap.docs.map(d => d.data().testId))]
 }
 
-// Alias kept for backward compatibility
 export const fetchUserResults = fetchUserCompletedTests
 
 // ─────────────────────────────────────────────────────────
