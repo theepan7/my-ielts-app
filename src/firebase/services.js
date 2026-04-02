@@ -43,17 +43,12 @@ export async function fetchTestWithQuestions(testDocId) {
 
 // ─────────────────────────────────────────────────────────
 //  SAVE RESULT
-//  - Every attempt saved to /results
-//  - Progress counts UNIQUE tests only
-//  - Average uses BEST score per test
-//  - Country fields ALWAYS preserved on update
 // ─────────────────────────────────────────────────────────
 
 export async function saveResult(
   userId, userName, testDocId, testId,
   correct, total, band, partScores
 ) {
-  // 1. Save attempt record
   await addDoc(collection(db, 'results'), {
     userId, userName, testDocId, testId,
     correct, total, band,
@@ -62,7 +57,6 @@ export async function saveResult(
     completedAt: serverTimestamp(),
   })
 
-  // 2. Update leaderboard atomically
   const lbRef = doc(db, 'leaderboard', userId)
   await runTransaction(db, async tx => {
     const lbSnap = await tx.get(lbRef)
@@ -110,7 +104,6 @@ export async function saveResult(
         bestBand:        parseFloat(band) > parseFloat(d.bestBand || '0') ? band : d.bestBand,
         bestScore:       Math.max(d.bestScore || 0, correct),
         lastPlayed:      serverTimestamp(),
-        // ✅ Always carry country fields forward — never wipe them
         countryCode:     d.countryCode || '',
         countryName:     d.countryName || '',
         countryFlag:     d.countryFlag || '🌍',
@@ -121,7 +114,6 @@ export async function saveResult(
 
 // ─────────────────────────────────────────────────────────
 //  LEADERBOARD — top 10 global
-//  Single orderBy — no composite index needed
 // ─────────────────────────────────────────────────────────
 
 export async function fetchLeaderboard() {
@@ -133,23 +125,15 @@ export async function fetchLeaderboard() {
 
 // ─────────────────────────────────────────────────────────
 //  COUNTRY LEADERBOARD — top 10 for a country
-//  Fetches all docs for the country using only a single
-//  where() clause (no composite index required), then
-//  sorts and slices client-side.
+//  Single where() only — no composite index needed.
+//  Sorted client-side.
 // ─────────────────────────────────────────────────────────
 
 export async function fetchCountryLeaderboard(countryCode) {
   if (!countryCode) return []
-
-  // Single where() — no composite index needed
   const snap = await getDocs(
-    query(
-      collection(db, 'leaderboard'),
-      where('countryCode', '==', countryCode)
-    )
+    query(collection(db, 'leaderboard'), where('countryCode', '==', countryCode))
   )
-
-  // Sort by avgScore descending and take top 10 client-side
   return snap.docs
     .map(d => d.data())
     .sort((a, b) => (b.avgScore || 0) - (a.avgScore || 0))
@@ -159,8 +143,8 @@ export async function fetchCountryLeaderboard(countryCode) {
 
 // ─────────────────────────────────────────────────────────
 //  USER RANK — global + country
-//  Single full collection read, all counting done client-side.
-//  No composite indexes required. Works for avgScore = 0.
+//  Full collection read, counted client-side.
+//  No composite indexes needed. Works for avgScore = 0.
 // ─────────────────────────────────────────────────────────
 
 export async function fetchUserRank(userId) {
@@ -170,13 +154,11 @@ export async function fetchUserRank(userId) {
   const data    = userSnap.data()
   const userAvg = data.avgScore || 0
 
-  // One read for everything — count ranks client-side
   const allSnap = await getDocs(collection(db, 'leaderboard'))
   const allDocs = allSnap.docs.map(d => d.data())
 
   const totalStudents = allDocs.length
-
-  const globalRank = allDocs.filter(d => (d.avgScore || 0) > userAvg).length + 1
+  const globalRank    = allDocs.filter(d => (d.avgScore || 0) > userAvg).length + 1
 
   let countryRank = null
   if (data.countryCode) {
@@ -185,12 +167,7 @@ export async function fetchUserRank(userId) {
     ).length + 1
   }
 
-  return {
-    ...data,
-    globalRank,
-    countryRank,
-    totalStudents,
-  }
+  return { ...data, globalRank, countryRank, totalStudents }
 }
 
 // ─────────────────────────────────────────────────────────
@@ -204,7 +181,6 @@ export async function fetchUserCompletedTests(userId) {
       return lbSnap.data().uniqueTestsDone
     }
   } catch (_) {}
-
   const snap = await getDocs(
     query(collection(db, 'results'), where('userId', '==', userId))
   )
@@ -226,13 +202,25 @@ export async function sendContactMessage(name, email, subject, message) {
 }
 
 // ─────────────────────────────────────────────────────────
-//  HELPER
+//  HELPER — calcBand
+//  Updated to match the official IELTS Listening score table:
+//  39–40 → 9.0  |  37–38 → 8.5  |  35–36 → 8.0
+//  32–34 → 7.5  |  30–31 → 7.0  |  26–29 → 6.5
+//  23–25 → 6.0  |  18–22 → 5.5  |  16–17 → 5.0
+//  13–15 → 4.5  |  11–12 → 4.0
 // ─────────────────────────────────────────────────────────
 
 export function calcBand(correct) {
-  if (correct >= 39) return '9.0'; if (correct >= 37) return '8.5'
-  if (correct >= 35) return '8.0'; if (correct >= 33) return '7.5'
-  if (correct >= 30) return '7.0'; if (correct >= 27) return '6.5'
-  if (correct >= 23) return '6.0'; if (correct >= 20) return '5.5'
-  if (correct >= 16) return '5.0'; return '4.5'
+  if (correct >= 39) return '9.0'
+  if (correct >= 37) return '8.5'
+  if (correct >= 35) return '8.0'
+  if (correct >= 32) return '7.5'
+  if (correct >= 30) return '7.0'
+  if (correct >= 26) return '6.5'
+  if (correct >= 23) return '6.0'
+  if (correct >= 18) return '5.5'
+  if (correct >= 16) return '5.0'
+  if (correct >= 13) return '4.5'
+  if (correct >= 11) return '4.0'
+  return '3.5'
 }
