@@ -43,7 +43,6 @@ export async function fetchTestWithQuestions(testDocId) {
 
 // ─────────────────────────────────────────────────────────
 //  SAVE RESULT
-//  Rules:
 //  - Every attempt saved to /results
 //  - Progress counts UNIQUE tests only
 //  - Average uses BEST score per test
@@ -69,8 +68,7 @@ export async function saveResult(
     const lbSnap = await tx.get(lbRef)
 
     if (!lbSnap.exists()) {
-      // First ever result — no country info available here, set empty
-      // (country is set during signup via AuthContext)
+      // Leaderboard doc missing (should have been created on signup)
       tx.set(lbRef, {
         userId, userName,
         testsCompleted:  1,
@@ -80,8 +78,6 @@ export async function saveResult(
         avgBand:         band,
         bestBand:        band,
         bestScore:       correct,
-        // Country fields intentionally left empty here —
-        // they are written during signup in AuthContext
         countryCode:     '',
         countryName:     '',
         countryFlag:     '🌍',
@@ -115,7 +111,7 @@ export async function saveResult(
         bestBand:        parseFloat(band) > parseFloat(d.bestBand || '0') ? band : d.bestBand,
         bestScore:       Math.max(d.bestScore || 0, correct),
         lastPlayed:      serverTimestamp(),
-        // ✅ Preserve country fields — never overwrite them on score update
+        // ✅ Always preserve country — never wipe on score update
         countryCode:     d.countryCode || '',
         countryName:     d.countryName || '',
         countryFlag:     d.countryFlag || '🌍',
@@ -153,46 +149,43 @@ export async function fetchCountryLeaderboard(countryCode) {
 }
 
 // ─────────────────────────────────────────────────────────
-//  USER RANK — global + country
-//  Fixed: reads user doc first, then counts higher-ranked
-//  users. Returns null only if user has NO leaderboard doc.
+//  USER RANK
+//  Uses client-side counting from a full leaderboard fetch
+//  instead of compound Firestore queries — avoids the need
+//  for composite indexes and works for users with avgScore 0.
 // ─────────────────────────────────────────────────────────
 
 export async function fetchUserRank(userId) {
+  // 1. Get this user's leaderboard doc
   const userSnap = await getDoc(doc(db, 'leaderboard', userId))
   if (!userSnap.exists()) return null
 
   const data    = userSnap.data()
   const userAvg = data.avgScore || 0
 
-  // Total students = all leaderboard docs
+  // 2. Fetch all leaderboard docs in one read and count client-side
+  //    This avoids compound index requirements entirely.
   const allSnap = await getDocs(collection(db, 'leaderboard'))
-  const total   = allSnap.size
+  const allDocs = allSnap.docs.map(d => d.data())
 
-  // Count how many users score strictly higher (globally)
-  const globalHigherSnap = await getDocs(
-    query(collection(db, 'leaderboard'), where('avgScore', '>', userAvg))
-  )
-  const globalRank = globalHigherSnap.size + 1
+  const totalStudents = allDocs.length
 
-  // Count how many users in same country score strictly higher
+  // Global rank = number of users with strictly higher avgScore + 1
+  const globalRank = allDocs.filter(d => (d.avgScore || 0) > userAvg).length + 1
+
+  // Country rank = same but filtered to same country
   let countryRank = null
   if (data.countryCode) {
-    const countryHigherSnap = await getDocs(
-      query(
-        collection(db, 'leaderboard'),
-        where('countryCode', '==', data.countryCode),
-        where('avgScore',    '>',  userAvg)
-      )
-    )
-    countryRank = countryHigherSnap.size + 1
+    countryRank = allDocs.filter(
+      d => d.countryCode === data.countryCode && (d.avgScore || 0) > userAvg
+    ).length + 1
   }
 
   return {
     ...data,
     globalRank,
     countryRank,
-    totalStudents: total,
+    totalStudents,
   }
 }
 
