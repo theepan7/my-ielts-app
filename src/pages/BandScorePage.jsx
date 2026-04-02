@@ -19,32 +19,32 @@ const BAND_DATA = [
     desc: 'Very good command. Occasional unsystematic inaccuracies may occur.',
   },
   {
-    band: '7.5', correct: '33–34', label: 'Good',
+    band: '7.5', correct: '32–34', label: 'Good',
     color: '#0891b2', bg: '#ecfeff', border: '#a5f3fc',
     desc: 'Good operational command with occasional inaccuracies in complex situations.',
   },
   {
-    band: '7.0', correct: '30–32', label: 'Good',
+    band: '7.0', correct: '30–31', label: 'Good',
     color: '#2563eb', bg: '#eff4ff', border: '#bfdbfe',
     desc: 'Good command with some inaccuracies. Generally handles complex language well.',
   },
   {
-    band: '6.5', correct: '27–29', label: 'Competent',
+    band: '6.5', correct: '26–29', label: 'Competent',
     color: '#2563eb', bg: '#eff4ff', border: '#bfdbfe',
     desc: 'Competent command with occasional inaccuracies. Understands fairly complex language.',
   },
   {
-    band: '6.0', correct: '23–26', label: 'Competent',
+    band: '6.0', correct: '23–25', label: 'Competent',
     color: '#d97706', bg: '#fffbeb', border: '#fde68a',
     desc: 'Generally effective command despite inaccuracies. Can use and understand complex language.',
   },
   {
-    band: '5.5', correct: '20–22', label: 'Modest',
+    band: '5.5', correct: '18–22', label: 'Modest',
     color: '#d97706', bg: '#fffbeb', border: '#fde68a',
     desc: 'Partial command of the language. Copes with overall meaning in most situations.',
   },
   {
-    band: '5.0', correct: '16–19', label: 'Modest',
+    band: '5.0', correct: '16–17', label: 'Modest',
     color: '#dc2626', bg: '#fef2f2', border: '#fecaca',
     desc: 'Partial command. Likely to make many mistakes and to misunderstand in some situations.',
   },
@@ -54,7 +54,7 @@ const BAND_DATA = [
     desc: 'Limited command. Copes with familiar topics but has frequent problems.',
   },
   {
-    band: '4.0', correct: '10–12', label: 'Limited',
+    band: '4.0', correct: '11–12', label: 'Limited',
     color: '#7c3aed', bg: '#f5f3ff', border: '#ddd6fe',
     desc: 'Basic competence limited to familiar situations. Has frequent comprehension problems.',
   },
