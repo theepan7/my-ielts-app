@@ -53,6 +53,7 @@ function LbRow({ entry, index, isMe, showFlag }) {
           display: 'flex', alignItems: 'center', gap: 4,
           whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
         }}>
+          {/* Only show real country flags — skip the default globe emoji */}
           {showFlag && entry.countryFlag && entry.countryFlag !== '🌍' && (
             <span style={{ fontSize: 13, flexShrink: 0 }}>{entry.countryFlag}</span>
           )}
@@ -69,7 +70,7 @@ function LbRow({ entry, index, isMe, showFlag }) {
 
       <div style={{ textAlign: 'right', flexShrink: 0 }}>
         <div style={{ fontSize: 13, fontWeight: 700, color: '#2563eb' }}>
-          {entry.avgBand || '—'}
+          {entry.avgBand && entry.avgBand !== '—' ? entry.avgBand : '—'}
         </div>
         <div style={{ fontSize: 9, color: '#94a3b8' }}>avg band</div>
       </div>
@@ -149,9 +150,8 @@ function GlobalRankBanner({ globalRank, totalStudents, onClose }) {
 export default function Leaderboard() {
   const { user } = useAuth()
 
-  // Tracks whether the initial load has completed.
-  // Background refreshes (interval / manual ↻) must NEVER reset view or showBanner —
-  // those are user-controlled state after the first load.
+  // initialLoadDone ref prevents background refreshes from resetting
+  // view/showBanner that the user has manually changed
   const initialLoadDone = useRef(false)
 
   const [view,           setView]           = useState('global')
@@ -165,24 +165,30 @@ export default function Leaderboard() {
   const countryCode = userRankData?.countryCode || ''
   const countryName = userRankData?.countryName || ''
   const countryFlag = userRankData?.countryFlag || ''
+  // hasCountry is true only when logged in AND a real countryCode exists in Firestore
   const hasCountry  = isLoggedIn && countryCode.length > 0
 
   async function load(isInitial = false) {
     try {
-      // Always refresh the data arrays
+      // Always refresh global entries
       const global = await fetchLeaderboard()
       setGlobalEntries(global)
 
       if (isLoggedIn) {
+        // fetchUserRank now does a single full collection read client-side —
+        // no compound index required, works for users with avgScore 0
         const ur = await fetchUserRank(user.uid)
         setUserRankData(ur)
+
         if (ur?.countryCode) {
+          // Fetch country leaderboard — single-field where query, no index needed
           const countryList = await fetchCountryLeaderboard(ur.countryCode)
           setCountryEntries(countryList)
-        }
-        // Only set view on initial load — never override user's manual choice
-        if (isInitial) {
-          setView(ur?.countryCode ? 'country' : 'global')
+
+          // Only set view on initial load — never override user's manual switch
+          if (isInitial) setView('country')
+        } else {
+          if (isInitial) setView('global')
         }
       } else {
         setUserRankData(null)
@@ -200,12 +206,15 @@ export default function Leaderboard() {
   }
 
   useEffect(() => {
-    // Reset everything when user changes (login / logout)
+    // Full reset whenever user logs in/out
     initialLoadDone.current = false
     setLoading(true)
     setShowBanner(false)
+    setUserRankData(null)
+    setCountryEntries([])
     load(true)
 
+    // Background refresh every 60s — data only, never resets view
     const interval = setInterval(() => load(false), 60_000)
     return () => clearInterval(interval)
   }, [user?.uid])
@@ -234,7 +243,7 @@ export default function Leaderboard() {
             ? `${countryFlag} ${countryName} Ranking`
             : 'Global Leaderboard'}
         </span>
-        {/* Manual refresh: data only — never resets view */}
+        {/* Manual refresh — data only, preserves view and banner */}
         <button onClick={() => load(false)} style={{
           background: 'none', border: 'none', cursor: 'pointer',
           fontSize: 11, color: '#2563eb', fontWeight: 600,
@@ -266,7 +275,7 @@ export default function Leaderboard() {
                 />
               ))}
 
-              {/* User's own row if outside top 10 */}
+              {/* Show user's own row below the top 10 if they're not in it */}
               {isLoggedIn && !userInTop10 && userRankData && (
                 <>
                   <div style={{
@@ -289,7 +298,7 @@ export default function Leaderboard() {
             </div>
           )}
 
-          {/* ── CTA: country → global ── */}
+          {/* ── CTA: switch to global (shown at bottom of country view) ── */}
           {isLoggedIn && hasCountry && view === 'country' && (
             <button
               onClick={() => { setView('global'); setShowBanner(true) }}
@@ -318,7 +327,7 @@ export default function Leaderboard() {
             </button>
           )}
 
-          {/* ── Global view: rank banner + back to country ── */}
+          {/* ── Global view: rank banner + back button ── */}
           {view === 'global' && (
             <>
               {isLoggedIn && showBanner && userRankData?.globalRank && (
