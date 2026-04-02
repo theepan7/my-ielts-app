@@ -15,14 +15,29 @@ export default function ResultPage() {
   if (!state) return null
 
   const { testTitle, correct, total, band, elapsed, partScores, answers, test } = state
-  const pct  = Math.round((correct / total) * 100)
-  const em   = Math.floor(elapsed / 60)
-  const es   = (elapsed % 60).toString().padStart(2, '0')
+  const pct   = Math.round((correct / total) * 100)
+  const em    = Math.floor(elapsed / 60)
+  const es    = (elapsed % 60).toString().padStart(2, '0')
   const wrong = total - correct
 
   const bandColor = parseFloat(band) >= 7.0
     ? 'text-green-300' : parseFloat(band) >= 5.5
       ? 'text-amber-300' : 'text-red-300'
+
+  // Official IELTS Listening band score conversion table
+  const BAND_TABLE = [
+    { b: '9.0',  r: '39–40', c: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+    { b: '8.5',  r: '37–38', c: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+    { b: '8.0',  r: '35–36', c: 'bg-teal-50    text-teal-700    border-teal-200'    },
+    { b: '7.5',  r: '32–34', c: 'bg-teal-50    text-teal-700    border-teal-200'    },
+    { b: '7.0',  r: '30–31', c: 'bg-blue-50    text-blue-700    border-blue-200'    },
+    { b: '6.5',  r: '26–29', c: 'bg-blue-50    text-blue-700    border-blue-200'    },
+    { b: '6.0',  r: '23–25', c: 'bg-amber-50   text-amber-700   border-amber-200'   },
+    { b: '5.5',  r: '18–22', c: 'bg-amber-50   text-amber-700   border-amber-200'   },
+    { b: '5.0',  r: '16–17', c: 'bg-orange-50  text-orange-700  border-orange-200'  },
+    { b: '4.5',  r: '13–15', c: 'bg-red-50     text-red-700     border-red-200'     },
+    { b: '4.0',  r: '11–12', c: 'bg-red-50     text-red-700     border-red-200'     },
+  ]
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-8">
@@ -63,21 +78,13 @@ export default function ResultPage() {
         <p className="text-[10.5px] font-bold text-slate-400 uppercase tracking-widest mb-3">
           Band Score Reference
         </p>
-        <div className="grid grid-cols-5 sm:grid-cols-9 gap-1.5">
-          {[
-            { b: '9.0', r: '39–40', c: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
-            { b: '8.5', r: '37–38', c: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
-            { b: '8.0', r: '35–36', c: 'bg-teal-50 text-teal-700 border-teal-200' },
-            { b: '7.5', r: '33–34', c: 'bg-teal-50 text-teal-700 border-teal-200' },
-            { b: '7.0', r: '30–32', c: 'bg-blue-50 text-blue-700 border-blue-200' },
-            { b: '6.5', r: '27–29', c: 'bg-blue-50 text-blue-700 border-blue-200' },
-            { b: '6.0', r: '23–26', c: 'bg-amber-50 text-amber-700 border-amber-200' },
-            { b: '5.5', r: '20–22', c: 'bg-amber-50 text-amber-700 border-amber-200' },
-            { b: '5.0', r: '16–19', c: 'bg-red-50 text-red-700 border-red-200' },
-          ].map(item => (
-            <div key={item.b}
+        <div className="grid grid-cols-4 sm:grid-cols-6 gap-1.5">
+          {BAND_TABLE.map(item => (
+            <div
+              key={item.b}
               className={`text-center p-1.5 rounded-lg border text-[10px] font-semibold ${item.c}
-                ${item.b === band ? 'ring-2 ring-offset-1 ring-blue-500 scale-105' : ''}`}>
+                ${item.b === band ? 'ring-2 ring-offset-1 ring-blue-500 scale-105' : ''}`}
+            >
               <div className="font-bold">{item.b}</div>
               <div className="opacity-70 text-[9px]">{item.r}</div>
             </div>
@@ -112,8 +119,10 @@ export default function ResultPage() {
                   <span className="text-sm font-bold text-slate-700 w-16 text-right flex-shrink-0">
                     {sc.correct}/{sc.total}
                   </span>
-                  <span className="text-xs font-bold w-10 flex-shrink-0 text-right"
-                    style={{ color: pPct >= 70 ? '#059669' : pPct >= 50 ? '#d97706' : '#dc2626' }}>
+                  <span
+                    className="text-xs font-bold w-10 flex-shrink-0 text-right"
+                    style={{ color: pPct >= 70 ? '#059669' : pPct >= 50 ? '#d97706' : '#dc2626' }}
+                  >
                     {pPct}%
                   </span>
                 </div>
@@ -145,7 +154,6 @@ export default function ResultPage() {
                 )}
               </div>
 
-              {/* Audio player in review mode */}
               {part.audioUrl && (
                 <AudioPlayer
                   key={`review-${part.id}`}
@@ -154,13 +162,12 @@ export default function ResultPage() {
                 />
               )}
 
-              {/* Render all sections in review mode */}
               {(part.sections || []).map(section => (
                 <QuestionRenderer
                   key={section.id}
                   section={section}
                   answers={answers}
-                  onChange={() => {}}   // read-only in review
+                  onChange={() => {}}
                   reviewMode={true}
                 />
               ))}
