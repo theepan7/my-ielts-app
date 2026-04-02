@@ -2,13 +2,6 @@
 import React from 'react'
 import { useNavigate } from 'react-router-dom'
 
-const STATS = [
-  { n: '100',   l: 'Full Practice Tests' },
-  { n: '4,000+', l: 'Questions' },
-  { n: '50K+',  l: 'Students' },
-  { n: '9.0',   l: 'Max Band Score' },
-]
-
 const FEATURES = [
   {
     title: 'Authentic Audio',
@@ -96,7 +89,7 @@ export default function AboutPage() {
             IELTS Listening Pro was created to give every student — regardless of budget or location — access to high-quality, realistic IELTS listening practice. We believe that preparation quality should not be determined by how much you can afford to spend.
           </p>
           <p style={{ fontSize: 14, color: '#475569', lineHeight: 1.8, marginBottom: 12 }}>
-            Our 100 full-length tests are designed by experienced IELTS educators and reviewed by certified examiners to ensure they accurately reflect the real exam format, difficulty and question types.
+            Our tests are designed by experienced IELTS educators and reviewed by certified examiners to ensure they accurately reflect the real exam format, difficulty and question types.
           </p>
           <p style={{ fontSize: 14, color: '#475569', lineHeight: 1.8, margin: 0 }}>
             We are continuously adding new tests, improving existing content, and building features that help students track their progress and achieve their target band scores.
@@ -123,32 +116,7 @@ export default function AboutPage() {
           ))}
         </div>
 
-        {/* Team */}
-        <h2 style={{ fontFamily: 'Lora,serif', fontSize: '1.15rem', fontWeight: 600, color: '#0f172a', marginBottom: 14 }}>
-          Who Makes This Possible
-        </h2>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(240px,1fr))', gap: 12, marginBottom: 32 }}>
-          {TEAM.map((t, i) => (
-            <div key={i} style={{
-              background: '#fff', border: '1px solid #e2e8f0', borderRadius: 12,
-              padding: '20px 18px', boxShadow: '0 1px 3px rgba(15,23,42,.05)',
-              display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center',
-            }}>
-              <div style={{
-                width: 52, height: 52, borderRadius: '50%', marginBottom: 12,
-                background: t.color, display: 'flex', alignItems: 'center',
-                justifyContent: 'center', fontSize: 14, fontWeight: 700, color: '#fff',
-              }}>
-                {t.initials}
-              </div>
-              <h3 style={{ fontSize: 13.5, fontWeight: 700, color: '#0f172a', marginBottom: 3 }}>{t.name}</h3>
-              <p style={{ fontSize: 11.5, color: t.color, fontWeight: 600, marginBottom: 8 }}>{t.role}</p>
-              <p style={{ fontSize: 12.5, color: '#64748b', lineHeight: 1.65, margin: 0 }}>{t.desc}</p>
-            </div>
-          ))}
-        </div>
-
-        {/* Disclaimer */}
+  {/* Disclaimer */}
         <div style={{
           background: '#fffbeb', border: '1px solid #fde68a',
           borderRadius: 10, padding: '14px 18px', marginBottom: 28,
