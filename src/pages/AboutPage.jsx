@@ -11,32 +11,26 @@ const STATS = [
 
 const FEATURES = [
   {
-    icon: '🎧',
     title: 'Authentic Audio',
     desc: 'All tests use realistic audio recordings with native English speakers across a range of accents — British, Australian, American and more.',
   },
   {
-    icon: '📊',
     title: 'Instant Band Scores',
     desc: 'Get your estimated IELTS band score immediately after each test using the official score conversion scale.',
   },
   {
-    icon: '🏆',
     title: 'Global Leaderboard',
     desc: 'Compete with students worldwide. Rankings are based on your average band score across all tests completed.',
   },
   {
-    icon: '📈',
     title: 'Progress Tracking',
     desc: 'Track which tests you have completed, monitor your improvement over time, and see your global ranking.',
   },
   {
-    icon: '🔒',
     title: 'Secure & Private',
     desc: 'Your data is stored securely in Firebase. We never share your personal information with third parties.',
   },
   {
-    icon: '📱',
     title: 'Any Device',
     desc: 'Practice on desktop, tablet or mobile. The platform adapts to any screen size for a comfortable experience.',
   },
