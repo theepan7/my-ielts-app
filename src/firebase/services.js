@@ -2,9 +2,28 @@
 import {
   collection, doc, getDoc, getDocs,
   addDoc, query, orderBy, limit,
-  where, serverTimestamp, runTransaction,
+  where, serverTimestamp, runTransaction
 } from 'firebase/firestore'
 import { db } from './config'
+
+// ─────────────────────────────────────────────────────────
+//  MINIMUM SCORE TO QUALIFY FOR A BAND / LEADERBOARD
+// ─────────────────────────────────────────────────────────
+export const MIN_ANSWERS_FOR_BAND = 11
+
+// ─────────────────────────────────────────────────────────
+//  BAND SCORE HELPER
+//  Returns null if correct < MIN_ANSWERS_FOR_BAND
+//  so the result page can show score without a band
+// ─────────────────────────────────────────────────────────
+export function calcBand(correct) {
+  if (correct < MIN_ANSWERS_FOR_BAND) return null   // ← no band below 11
+  if (correct >= 39) return '9.0'; if (correct >= 37) return '8.5'
+  if (correct >= 35) return '8.0'; if (correct >= 33) return '7.5'
+  if (correct >= 30) return '7.0'; if (correct >= 27) return '6.5'
+  if (correct >= 23) return '6.0'; if (correct >= 20) return '5.5'
+  if (correct >= 16) return '5.0'; return '4.5'
+}
 
 // ─────────────────────────────────────────────────────────
 //  TESTS
@@ -43,25 +62,43 @@ export async function fetchTestWithQuestions(testDocId) {
 
 // ─────────────────────────────────────────────────────────
 //  SAVE RESULT
+//
+//  Rules:
+//  1. Always save the attempt record (every submission)
+//  2. Only update the leaderboard if correct >= MIN_ANSWERS_FOR_BAND (11)
+//  3. Progress counts UNIQUE tests only
+//  4. Average uses BEST score per test
 // ─────────────────────────────────────────────────────────
 
 export async function saveResult(
   userId, userName, testDocId, testId,
   correct, total, band, partScores
 ) {
+  const qualifies = correct >= MIN_ANSWERS_FOR_BAND
+
+  // 1. Always save the attempt record regardless of score
   await addDoc(collection(db, 'results'), {
     userId, userName, testDocId, testId,
-    correct, total, band,
+    correct, total,
+    band:        qualifies ? band : null,   // null = no band
     percentage:  Math.round((correct / total) * 100),
     partScores,
+    qualifiesForLeaderboard: qualifies,
     completedAt: serverTimestamp(),
   })
+
+  // 2. Only update leaderboard if score qualifies
+  if (!qualifies) {
+    console.log(`Score ${correct}/40 is below minimum (${MIN_ANSWERS_FOR_BAND}) — leaderboard not updated.`)
+    return
+  }
 
   const lbRef = doc(db, 'leaderboard', userId)
   await runTransaction(db, async tx => {
     const lbSnap = await tx.get(lbRef)
 
     if (!lbSnap.exists()) {
+      // First qualifying result for this user
       tx.set(lbRef, {
         userId, userName,
         testsCompleted:  1,
@@ -89,31 +126,31 @@ export async function saveResult(
         ? { ...bestScores, [key]: newBest }
         : bestScores
 
+      // Progress: unique tests only
       const newCount      = alreadyDone ? d.testsCompleted : d.testsCompleted + 1
       const newUniqueDone = alreadyDone ? uniqueDone : [...uniqueDone, testId]
 
-      const totalBest = Object.values(newBestScores).reduce((s, v) => s + v, 0)
-      const newAvg    = parseFloat((totalBest / newUniqueDone.length).toFixed(1))
+      // Average: sum of best scores / unique count
+      const totalBest  = Object.values(newBestScores).reduce((s, v) => s + v, 0)
+      const newAvg     = parseFloat((totalBest / newUniqueDone.length).toFixed(1))
+      const newAvgBand = calcBand(Math.round(newAvg))
 
       tx.update(lbRef, {
         testsCompleted:  newCount,
         uniqueTestsDone: newUniqueDone,
         bestScores:      newBestScores,
         avgScore:        newAvg,
-        avgBand:         calcBand(Math.round(newAvg)),
+        avgBand:         newAvgBand,
         bestBand:        parseFloat(band) > parseFloat(d.bestBand || '0') ? band : d.bestBand,
         bestScore:       Math.max(d.bestScore || 0, correct),
         lastPlayed:      serverTimestamp(),
-        countryCode:     d.countryCode || '',
-        countryName:     d.countryName || '',
-        countryFlag:     d.countryFlag || '🌍',
       })
     }
   })
 }
 
 // ─────────────────────────────────────────────────────────
-//  LEADERBOARD — top 10 global
+//  LEADERBOARD — global top 10
 // ─────────────────────────────────────────────────────────
 
 export async function fetchLeaderboard() {
@@ -125,26 +162,23 @@ export async function fetchLeaderboard() {
 
 // ─────────────────────────────────────────────────────────
 //  COUNTRY LEADERBOARD — top 10 for a country
-//  Single where() only — no composite index needed.
-//  Sorted client-side.
 // ─────────────────────────────────────────────────────────
 
 export async function fetchCountryLeaderboard(countryCode) {
   if (!countryCode) return []
   const snap = await getDocs(
-    query(collection(db, 'leaderboard'), where('countryCode', '==', countryCode))
+    query(
+      collection(db, 'leaderboard'),
+      where('countryCode', '==', countryCode),
+      orderBy('avgScore', 'desc'),
+      limit(10)
+    )
   )
-  return snap.docs
-    .map(d => d.data())
-    .sort((a, b) => (b.avgScore || 0) - (a.avgScore || 0))
-    .slice(0, 10)
-    .map((d, i) => ({ rank: i + 1, ...d }))
+  return snap.docs.map((d, i) => ({ rank: i + 1, ...d.data() }))
 }
 
 // ─────────────────────────────────────────────────────────
-//  USER RANK — global + country
-//  Full collection read, counted client-side.
-//  No composite indexes needed. Works for avgScore = 0.
+//  USER RANK — global + country + total students
 // ─────────────────────────────────────────────────────────
 
 export async function fetchUserRank(userId) {
@@ -154,20 +188,27 @@ export async function fetchUserRank(userId) {
   const data    = userSnap.data()
   const userAvg = data.avgScore || 0
 
-  const allSnap = await getDocs(collection(db, 'leaderboard'))
-  const allDocs = allSnap.docs.map(d => d.data())
+  const [globalHigher, countryHigher, totalSnap] = await Promise.all([
+    getDocs(query(
+      collection(db, 'leaderboard'),
+      where('avgScore', '>', userAvg)
+    )),
+    data.countryCode
+      ? getDocs(query(
+          collection(db, 'leaderboard'),
+          where('countryCode', '==', data.countryCode),
+          where('avgScore',    '>',  userAvg)
+        ))
+      : Promise.resolve({ size: 0 }),
+    getDocs(collection(db, 'leaderboard')),
+  ])
 
-  const totalStudents = allDocs.length
-  const globalRank    = allDocs.filter(d => (d.avgScore || 0) > userAvg).length + 1
-
-  let countryRank = null
-  if (data.countryCode) {
-    countryRank = allDocs.filter(
-      d => d.countryCode === data.countryCode && (d.avgScore || 0) > userAvg
-    ).length + 1
+  return {
+    ...data,
+    globalRank:    globalHigher.size + 1,
+    countryRank:   countryHigher.size + 1,
+    totalStudents: totalSnap.size,
   }
-
-  return { ...data, globalRank, countryRank, totalStudents }
 }
 
 // ─────────────────────────────────────────────────────────
@@ -199,28 +240,4 @@ export async function sendContactMessage(name, email, subject, message) {
     sentAt: serverTimestamp(),
     read:   false,
   })
-}
-
-// ─────────────────────────────────────────────────────────
-//  HELPER — calcBand
-//  Updated to match the official IELTS Listening score table:
-//  39–40 → 9.0  |  37–38 → 8.5  |  35–36 → 8.0
-//  32–34 → 7.5  |  30–31 → 7.0  |  26–29 → 6.5
-//  23–25 → 6.0  |  18–22 → 5.5  |  16–17 → 5.0
-//  13–15 → 4.5  |  11–12 → 4.0
-// ─────────────────────────────────────────────────────────
-
-export function calcBand(correct) {
-  if (correct >= 39) return '9.0'
-  if (correct >= 37) return '8.5'
-  if (correct >= 35) return '8.0'
-  if (correct >= 32) return '7.5'
-  if (correct >= 30) return '7.0'
-  if (correct >= 26) return '6.5'
-  if (correct >= 23) return '6.0'
-  if (correct >= 18) return '5.5'
-  if (correct >= 16) return '5.0'
-  if (correct >= 13) return '4.5'
-  if (correct >= 11) return '4.0'
-  return '3.5'
 }
