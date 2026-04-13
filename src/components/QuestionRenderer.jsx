@@ -1,10 +1,10 @@
 // src/components/QuestionRenderer.jsx
-// Renders any question type stored in Firestore.
-// Supported types: form, table, mcq, fill, notes, map, matching
+// Renders any IELTS question type from Firestore data.
+// In reviewMode=true: always shows correct answer for every question,
+// whether the user answered it or not.
 
 export default function QuestionRenderer({ section, answers, onChange, reviewMode }) {
   const type = section.type
-
   if (type === 'form')     return <FormSection     section={section} answers={answers} onChange={onChange} reviewMode={reviewMode} />
   if (type === 'table')    return <TableSection     section={section} answers={answers} onChange={onChange} reviewMode={reviewMode} />
   if (type === 'mcq')      return <McqSection       section={section} answers={answers} onChange={onChange} reviewMode={reviewMode} />
@@ -12,138 +12,182 @@ export default function QuestionRenderer({ section, answers, onChange, reviewMod
   if (type === 'notes')    return <NotesSection     section={section} answers={answers} onChange={onChange} reviewMode={reviewMode} />
   if (type === 'map')      return <MapSection       section={section} answers={answers} onChange={onChange} reviewMode={reviewMode} />
   if (type === 'matching') return <MatchingSection  section={section} answers={answers} onChange={onChange} reviewMode={reviewMode} />
-
-  return <p className="text-red-400 text-sm">Unknown section type: {type}</p>
+  return <p style={{ color: '#dc2626', fontSize: 13 }}>Unknown section type: {type}</p>
 }
 
-// ─── SHARED HELPERS ───────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────
+//  SHARED HELPERS
+// ─────────────────────────────────────────────────────────
 
-function normalize(str) {
+function norm(str) {
   return String(str || '').trim().toLowerCase().replace(/\s+/g, ' ')
 }
 
 function isCorrect(userAnswer, correctAnswer) {
-  return normalize(userAnswer) === normalize(correctAnswer)
+  return norm(userAnswer) === norm(correctAnswer)
 }
 
-function inputClass(qNo, answers, correctAnswer, reviewMode) {
+// Returns styling for an answer input based on review state
+function inputStyle(qNo, answers, correctAnswer, reviewMode) {
+  const base = {
+    display: 'inline-block',
+    background: '#fff',
+    borderBottom: '2px solid',
+    outline: 'none',
+    fontSize: 13,
+    padding: '2px 4px',
+    width: 140,
+    fontFamily: 'Plus Jakarta Sans, sans-serif',
+    transition: 'all .18s',
+  }
+
+  if (!reviewMode) return { ...base, borderColor: '#94a3b8' }
+
   const val = answers[qNo]
-  if (!reviewMode) return 'ielts-input'
-  if (!val) return 'ielts-input border-slate-300'
-  return isCorrect(val, correctAnswer)
-    ? 'ielts-input border-green-400 bg-green-50 text-green-800'
-    : 'ielts-input border-red-400 bg-red-50 text-red-700'
+  const answered = val !== undefined && val !== ''
+
+  if (!answered) {
+    // Not answered — show as blank red border, correct answer shown below
+    return { ...base, borderColor: '#f87171', background: '#fff5f5' }
+  }
+  if (isCorrect(val, correctAnswer)) {
+    return { ...base, borderColor: '#4ade80', background: '#f0fdf4', color: '#166534' }
+  }
+  return { ...base, borderColor: '#f87171', background: '#fff5f5', color: '#991b1b' }
 }
 
-function SectionWrapper({ section, children }) {
+// Always shows correct answer in review mode
+// Shows for: unanswered, wrong answers — in both cases student needs to know the answer
+function CorrectAnswer({ qNo, answers, correctAnswer, reviewMode }) {
+  if (!reviewMode) return null
+
+  const val      = answers[qNo]
+  const answered = val !== undefined && val !== ''
+  const correct  = answered && isCorrect(val, correctAnswer)
+
+  // Don't show hint if already correct
+  if (correct) return null
+
   return (
-    <div className="bg-white border border-slate-200 rounded-xl shadow-sm mb-4 overflow-hidden">
-      {/* Section heading */}
-      <div className="bg-slate-50 border-b border-slate-200 px-5 py-3">
-        <p className="font-semibold text-slate-800 text-sm">{section.heading}</p>
+    <span style={{
+      display: 'inline-flex', alignItems: 'center', gap: 3,
+      marginLeft: 6,
+      fontSize: 11.5, fontWeight: 600,
+      color: '#059669',
+      background: '#ecfdf5', border: '1px solid #a7f3d0',
+      borderRadius: 5, padding: '1px 7px',
+    }}>
+      ✓ {correctAnswer}
+    </span>
+  )
+}
+
+// Wrapper card for each section
+function SectionCard({ section, children }) {
+  return (
+    <div style={{
+      background: '#fff', border: '1px solid #e2e8f0',
+      borderRadius: 12, overflow: 'hidden', marginBottom: 12,
+      boxShadow: '0 1px 3px rgba(15,23,42,.06)',
+    }}>
+      <div style={{
+        background: '#f8fafc', borderBottom: '1px solid #e2e8f0',
+        padding: '10px 16px',
+      }}>
+        {section.heading && (
+          <p style={{ fontWeight: 700, color: '#0f172a', fontSize: 13, marginBottom: 2 }}>
+            {section.heading}
+          </p>
+        )}
         {section.instruction && (
-          <p className="text-slate-500 text-xs mt-0.5 italic">{section.instruction}</p>
+          <p style={{ color: '#64748b', fontSize: 12, fontStyle: 'italic' }}>
+            {section.instruction}
+          </p>
         )}
       </div>
-      <div className="px-5 py-4">
+      <div style={{ padding: '14px 16px' }}>
         {children}
       </div>
     </div>
   )
 }
 
-function CorrectAnswerHint({ qNo, answers, correctAnswer, reviewMode }) {
-  if (!reviewMode) return null
-  const val = answers[qNo]
-  if (!val || isCorrect(val, correctAnswer)) return null
-  return (
-    <span className="text-green-600 text-xs font-semibold ml-2">
-      ✓ {correctAnswer}
-    </span>
-  )
-}
-
-// ─── 1. FORM SECTION ──────────────────────────────────────────────
-// Renders label: [input] pairs
-// Firestore shape:
-// { type: "form", heading, instruction, fields: [{ qNo, label, prefix, suffix, answer }] }
-
+// ─────────────────────────────────────────────────────────
+//  1. FORM SECTION
+// ─────────────────────────────────────────────────────────
 function FormSection({ section, answers, onChange, reviewMode }) {
   return (
-    <SectionWrapper section={section}>
-      <div className="space-y-3">
+    <SectionCard section={section}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         {(section.fields || []).map(field => (
-          <div key={field.qNo} className="flex items-center gap-2 flex-wrap">
-            <span className="text-xs font-bold text-slate-400 w-4">{field.qNo}.</span>
-            <span className="text-sm text-slate-700 font-medium min-w-[120px]">
+          <div key={field.qNo} style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            <span style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', minWidth: 18 }}>
+              {field.qNo}.
+            </span>
+            <span style={{ fontSize: 13, color: '#334155', fontWeight: 500, minWidth: 120 }}>
               {field.label}
-              {field.prefix && <span className="text-slate-500 ml-1">{field.prefix}</span>}
+              {field.prefix && <span style={{ color: '#64748b', marginLeft: 4 }}>{field.prefix}</span>}
             </span>
             <input
               type="text"
               value={answers[field.qNo] || ''}
               onChange={e => onChange(field.qNo, e.target.value)}
               readOnly={reviewMode}
-              placeholder="…"
-              className={inputClass(field.qNo, answers, field.answer, reviewMode)}
+              placeholder={reviewMode && !(answers[field.qNo]) ? '(not answered)' : '…'}
+              style={inputStyle(field.qNo, answers, field.answer, reviewMode)}
             />
-            {field.suffix && <span className="text-sm text-slate-500">{field.suffix}</span>}
-            <CorrectAnswerHint qNo={field.qNo} answers={answers} correctAnswer={field.answer} reviewMode={reviewMode} />
+            {field.suffix && <span style={{ fontSize: 12, color: '#64748b' }}>{field.suffix}</span>}
+            <CorrectAnswer qNo={field.qNo} answers={answers} correctAnswer={field.answer} reviewMode={reviewMode} />
           </div>
         ))}
       </div>
-    </SectionWrapper>
+    </SectionCard>
   )
 }
 
-// ─── 2. TABLE SECTION ─────────────────────────────────────────────
-// Renders a table with static text and input cells
-// Firestore shape:
-// { type: "table", heading, instruction, caption, rows: [{ rowLabel, cells: [{ static? | qNo, label?, prefix?, answer }] }] }
-
+// ─────────────────────────────────────────────────────────
+//  2. TABLE SECTION
+// ─────────────────────────────────────────────────────────
 function TableSection({ section, answers, onChange, reviewMode }) {
   return (
-    <SectionWrapper section={section}>
+    <SectionCard section={section}>
       {section.caption && (
-        <p className="text-sm font-bold text-slate-700 mb-3">{section.caption}</p>
+        <p style={{ fontWeight: 700, fontSize: 13, color: '#0f172a', marginBottom: 10 }}>
+          {section.caption}
+        </p>
       )}
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm border-collapse">
+      <div style={{ overflowX: 'auto' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
           <tbody>
             {(section.rows || []).map((row, ri) => (
-              <tr key={ri} className={ri % 2 === 0 ? 'bg-slate-50' : 'bg-white'}>
-                {/* Row label column */}
+              <tr key={ri} style={{ background: ri % 2 === 0 ? '#f8fafc' : '#fff' }}>
                 {row.rowLabel !== undefined && (
-                  <td className="border border-slate-200 px-3 py-2.5 font-semibold text-slate-700 whitespace-nowrap w-28">
+                  <td style={{
+                    border: '1px solid #e2e8f0', padding: '9px 12px',
+                    fontWeight: 600, color: '#334155', minWidth: 90,
+                  }}>
                     {row.rowLabel}
                   </td>
                 )}
-                {/* Data cells */}
                 {(row.cells || []).map((cell, ci) => (
-                  <td key={ci} className="border border-slate-200 px-3 py-2.5">
+                  <td key={ci} style={{ border: '1px solid #e2e8f0', padding: '9px 12px' }}>
                     {cell.static ? (
-                      <span className="text-slate-600">{cell.static}</span>
+                      <span style={{ color: '#475569' }}>{cell.static}</span>
                     ) : (
-                      <span className="flex items-center gap-1.5 flex-wrap">
-                        {cell.label && (
-                          <span className="text-slate-600 text-xs">{cell.label}:</span>
-                        )}
-                        {cell.prefix && (
-                          <span className="text-slate-500 text-xs">{cell.prefix}</span>
-                        )}
-                        <span className="text-[10px] font-bold text-slate-400">{cell.qNo}.</span>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap' }}>
+                        {cell.label && <span style={{ color: '#64748b', fontSize: 11.5 }}>{cell.label}:</span>}
+                        {cell.prefix && <span style={{ color: '#64748b', fontSize: 11.5 }}>{cell.prefix}</span>}
+                        <span style={{ fontSize: 10, fontWeight: 700, color: '#94a3b8' }}>{cell.qNo}.</span>
                         <input
                           type="text"
                           value={answers[cell.qNo] || ''}
                           onChange={e => onChange(cell.qNo, e.target.value)}
                           readOnly={reviewMode}
-                          placeholder="…"
-                          className={inputClass(cell.qNo, answers, cell.answer, reviewMode)}
+                          placeholder={reviewMode && !answers[cell.qNo] ? '(not answered)' : '…'}
+                          style={inputStyle(cell.qNo, answers, cell.answer, reviewMode)}
                         />
-                        {cell.suffix && (
-                          <span className="text-slate-500 text-xs">{cell.suffix}</span>
-                        )}
-                        <CorrectAnswerHint qNo={cell.qNo} answers={answers} correctAnswer={cell.answer} reviewMode={reviewMode} />
+                        {cell.suffix && <span style={{ fontSize: 11.5, color: '#64748b' }}>{cell.suffix}</span>}
+                        <CorrectAnswer qNo={cell.qNo} answers={answers} correctAnswer={cell.answer} reviewMode={reviewMode} />
                       </span>
                     )}
                   </td>
@@ -153,153 +197,171 @@ function TableSection({ section, answers, onChange, reviewMode }) {
           </tbody>
         </table>
       </div>
-    </SectionWrapper>
+    </SectionCard>
   )
 }
 
-// ─── 3. MCQ SECTION ───────────────────────────────────────────────
-// Multiple choice A B C D
-// Firestore shape:
-// { type: "mcq", heading, instruction, questions: [{ qNo, text, options: ["A — ...", ...], answer: "A" }] }
-
+// ─────────────────────────────────────────────────────────
+//  3. MCQ SECTION
+// ─────────────────────────────────────────────────────────
 function McqSection({ section, answers, onChange, reviewMode }) {
   return (
-    <SectionWrapper section={section}>
-      <div className="space-y-5">
+    <SectionCard section={section}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
         {(section.questions || []).map(q => {
           const selected = answers[q.qNo]
           return (
             <div key={q.qNo}>
-              <p className="text-sm font-medium text-slate-800 mb-2">
-                <span className="font-bold text-slate-400 mr-1.5">{q.qNo}.</span>
+              <p style={{ fontSize: 13.5, fontWeight: 500, color: '#0f172a', marginBottom: 8 }}>
+                <span style={{ fontWeight: 700, color: '#94a3b8', marginRight: 6 }}>{q.qNo}.</span>
                 {q.text}
               </p>
-              <div className="space-y-1.5 ml-4">
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginLeft: 16 }}>
                 {(q.options || []).map((opt, i) => {
-                  const letter   = String.fromCharCode(65 + i) // A B C D
+                  const letter   = String.fromCharCode(65 + i)
                   const isSel    = selected === letter
                   const isAns    = reviewMode && letter === q.answer
-                  const isWrong  = reviewMode && isSel && letter !== q.answer
+                  const isWrong  = reviewMode && isSel && !isAns
+                  // In review: unanswered → highlight the correct answer in green
+                  const notAnswered = reviewMode && !selected
+
+                  const bg =
+                    isAns   ? '#f0fdf4' :
+                    isWrong ? '#fff5f5' :
+                    isSel   ? '#eff4ff' :
+                    '#f8fafc'
+                  const border =
+                    isAns   ? '#4ade80' :
+                    isWrong ? '#f87171' :
+                    isSel   ? '#93c5fd' :
+                    '#e2e8f0'
+                  const color =
+                    isAns   ? '#166534' :
+                    isWrong ? '#991b1b' :
+                    isSel   ? '#1d4ed8' :
+                    '#475569'
 
                   return (
                     <div
                       key={letter}
                       onClick={() => !reviewMode && onChange(q.qNo, letter)}
-                      className={`flex items-center gap-2.5 px-3 py-2 rounded-lg border-[1.5px] text-sm transition-all
-                        ${reviewMode ? 'cursor-default' : 'cursor-pointer'}
-                        ${isAns   ? 'bg-green-50 border-green-400 text-green-800'
-                        : isWrong ? 'bg-red-50 border-red-400 text-red-700'
-                        : isSel   ? 'bg-blue-50 border-blue-400 text-blue-800'
-                                  : 'bg-slate-50 border-slate-200 text-slate-700 hover:border-blue-300 hover:bg-blue-50'}`}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: 10,
+                        padding: '9px 12px', borderRadius: 8,
+                        border: `1.5px solid ${border}`,
+                        background: bg, color,
+                        cursor: reviewMode ? 'default' : 'pointer',
+                        fontSize: 13, transition: 'all .15s',
+                      }}
                     >
-                      <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center text-[10px] font-bold flex-shrink-0 transition-all
-                        ${isAns   ? 'border-green-500 bg-green-500 text-white'
-                        : isWrong ? 'border-red-500 bg-red-500 text-white'
-                        : isSel   ? 'border-blue-500 bg-blue-500 text-white'
-                                  : 'border-slate-300 text-slate-400'}`}>
+                      <div style={{
+                        width: 22, height: 22, borderRadius: '50%', flexShrink: 0,
+                        border: `2px solid ${isAns ? '#4ade80' : isWrong ? '#f87171' : isSel ? '#93c5fd' : '#cbd5e1'}`,
+                        background: (isAns || isSel) ? (isAns ? '#4ade80' : '#93c5fd') : 'transparent',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: 10, fontWeight: 700, color: (isAns || isSel) ? '#fff' : '#94a3b8',
+                      }}>
                         {letter}
                       </div>
-                      <span>{opt}</span>
+                      <span style={{ flex: 1 }}>{opt}</span>
+                      {/* Always show correct indicator for the right answer in review */}
                       {isAns && !isSel && (
-                        <span className="ml-auto text-green-600 text-xs font-bold">✓ Correct</span>
+                        <span style={{ fontSize: 11, fontWeight: 700, color: '#059669' }}>✓ Correct</span>
+                      )}
+                      {isAns && isSel && (
+                        <span style={{ fontSize: 11, fontWeight: 700, color: '#059669' }}>✓</span>
                       )}
                     </div>
                   )
                 })}
               </div>
+              {/* If unanswered in review — extra notice */}
+              {reviewMode && !selected && (
+                <p style={{ fontSize: 11.5, color: '#dc2626', marginTop: 4, marginLeft: 16 }}>
+                  Not answered — correct answer: <strong style={{ color: '#059669' }}>{q.answer}</strong>
+                </p>
+              )}
             </div>
           )
         })}
       </div>
-    </SectionWrapper>
+    </SectionCard>
   )
 }
 
-// ─── 4. FILL SECTION ──────────────────────────────────────────────
-// Complete a sentence with one blank
-// Firestore shape:
-// { type: "fill", heading, instruction, questions: [{ qNo, before, after, answer }] }
-// Example: before="The student's number is", after="on the register", answer="A4872"
-
+// ─────────────────────────────────────────────────────────
+//  4. FILL IN THE BLANK SECTION
+// ─────────────────────────────────────────────────────────
 function FillSection({ section, answers, onChange, reviewMode }) {
   return (
-    <SectionWrapper section={section}>
-      <div className="space-y-3">
+    <SectionCard section={section}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         {(section.questions || []).map(q => (
-          <div key={q.qNo} className="flex items-center gap-1.5 flex-wrap text-sm text-slate-700">
-            <span className="text-xs font-bold text-slate-400">{q.qNo}.</span>
+          <div key={q.qNo} style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 5, fontSize: 13, color: '#334155' }}>
+            <span style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8' }}>{q.qNo}.</span>
             {q.before && <span>{q.before}</span>}
             <input
               type="text"
               value={answers[q.qNo] || ''}
               onChange={e => onChange(q.qNo, e.target.value)}
               readOnly={reviewMode}
-              placeholder="…"
-              className={inputClass(q.qNo, answers, q.answer, reviewMode)}
+              placeholder={reviewMode && !answers[q.qNo] ? '(not answered)' : '…'}
+              style={inputStyle(q.qNo, answers, q.answer, reviewMode)}
             />
             {q.after && <span>{q.after}</span>}
-            <CorrectAnswerHint qNo={q.qNo} answers={answers} correctAnswer={q.answer} reviewMode={reviewMode} />
+            {/* Always show correct answer if wrong or unanswered */}
+            <CorrectAnswer qNo={q.qNo} answers={answers} correctAnswer={q.answer} reviewMode={reviewMode} />
           </div>
         ))}
       </div>
-    </SectionWrapper>
+    </SectionCard>
   )
 }
 
-// ─── 5. NOTES SECTION ─────────────────────────────────────────────
-// Note/summary completion — free text with gaps marked as blanks
-// Firestore shape:
-// { type: "notes", heading, instruction, title, lines: [{ text, fields: [{ qNo, answer, position }] }] }
-
+// ─────────────────────────────────────────────────────────
+//  5. NOTES SECTION
+// ─────────────────────────────────────────────────────────
 function NotesSection({ section, answers, onChange, reviewMode }) {
   return (
-    <SectionWrapper section={section}>
+    <SectionCard section={section}>
       {section.title && (
-        <p className="font-bold text-slate-700 text-sm mb-3 underline">{section.title}</p>
+        <p style={{ fontWeight: 700, color: '#0f172a', fontSize: 13, textDecoration: 'underline', marginBottom: 10 }}>
+          {section.title}
+        </p>
       )}
-      <div className="space-y-2">
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         {(section.lines || []).map((line, li) => (
-          <NoteLine
-            key={li}
-            line={line}
-            answers={answers}
-            onChange={onChange}
-            reviewMode={reviewMode}
-          />
+          <NoteLine key={li} line={line} answers={answers} onChange={onChange} reviewMode={reviewMode} />
         ))}
       </div>
-    </SectionWrapper>
+    </SectionCard>
   )
 }
 
 function NoteLine({ line, answers, onChange, reviewMode }) {
-  // A line can be plain text mixed with input gaps
-  // fields array: [{ qNo, answer, placeholder }]
   if (!line.fields || line.fields.length === 0) {
-    return <p className="text-sm text-slate-700 ml-3">{line.text}</p>
+    return <p style={{ fontSize: 13, color: '#475569', marginLeft: 8 }}>{line.text}</p>
   }
-
-  // Split text around __ markers and inject inputs
   const parts = (line.text || '').split('__')
   return (
-    <div className="flex items-center flex-wrap gap-1 text-sm text-slate-700 ml-3">
+    <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 4, fontSize: 13, color: '#475569', marginLeft: 8 }}>
       {parts.map((part, i) => (
-        <span key={i} className="flex items-center gap-1">
+        <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
           <span>{part}</span>
           {i < line.fields.length && (() => {
             const field = line.fields[i]
             return (
               <>
-                <span className="text-[10px] font-bold text-slate-400">{field.qNo}.</span>
+                <span style={{ fontSize: 10, fontWeight: 700, color: '#94a3b8' }}>{field.qNo}.</span>
                 <input
                   type="text"
                   value={answers[field.qNo] || ''}
                   onChange={e => onChange(field.qNo, e.target.value)}
                   readOnly={reviewMode}
-                  placeholder="…"
-                  className={inputClass(field.qNo, answers, field.answer, reviewMode)}
+                  placeholder={reviewMode && !answers[field.qNo] ? '(not answered)' : '…'}
+                  style={inputStyle(field.qNo, answers, field.answer, reviewMode)}
                 />
-                <CorrectAnswerHint qNo={field.qNo} answers={answers} correctAnswer={field.answer} reviewMode={reviewMode} />
+                <CorrectAnswer qNo={field.qNo} answers={answers} correctAnswer={field.answer} reviewMode={reviewMode} />
               </>
             )
           })()}
@@ -309,100 +371,100 @@ function NoteLine({ line, answers, onChange, reviewMode }) {
   )
 }
 
-// ─── 6. MAP / DIAGRAM SECTION ─────────────────────────────────────
-// Image with labeled inputs below
-// Firestore shape:
-// { type: "map", heading, instruction, imageUrl, imageAlt, questions: [{ qNo, label, answer }] }
-
+// ─────────────────────────────────────────────────────────
+//  6. MAP / DIAGRAM SECTION
+// ─────────────────────────────────────────────────────────
 function MapSection({ section, answers, onChange, reviewMode }) {
   return (
-    <SectionWrapper section={section}>
+    <SectionCard section={section}>
       {section.imageUrl && (
         <img
           src={section.imageUrl}
           alt={section.imageAlt || 'Diagram'}
-          className="max-w-full rounded-lg border border-slate-200 mb-4"
+          style={{ maxWidth: '100%', borderRadius: 8, border: '1px solid #e2e8f0', marginBottom: 14 }}
         />
       )}
-      <div className="space-y-2">
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         {(section.questions || []).map(q => (
-          <div key={q.qNo} className="flex items-center gap-2 flex-wrap text-sm">
-            <span className="text-xs font-bold text-slate-400 w-5">{q.qNo}.</span>
-            {q.label && (
-              <span className="text-slate-600 min-w-[80px]">{q.label}</span>
-            )}
+          <div key={q.qNo} style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', fontSize: 13 }}>
+            <span style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', minWidth: 20 }}>{q.qNo}.</span>
+            {q.label && <span style={{ color: '#475569', minWidth: 70 }}>{q.label}</span>}
             <input
               type="text"
               value={answers[q.qNo] || ''}
               onChange={e => onChange(q.qNo, e.target.value)}
               readOnly={reviewMode}
-              placeholder="…"
-              className={inputClass(q.qNo, answers, q.answer, reviewMode)}
+              placeholder={reviewMode && !answers[q.qNo] ? '(not answered)' : '…'}
+              style={inputStyle(q.qNo, answers, q.answer, reviewMode)}
             />
-            <CorrectAnswerHint qNo={q.qNo} answers={answers} correctAnswer={q.answer} reviewMode={reviewMode} />
+            <CorrectAnswer qNo={q.qNo} answers={answers} correctAnswer={q.answer} reviewMode={reviewMode} />
           </div>
         ))}
       </div>
-    </SectionWrapper>
+    </SectionCard>
   )
 }
 
-// ─── 7. MATCHING SECTION ──────────────────────────────────────────
-// Match items on the left to options on the right
-// Firestore shape:
-// { type: "matching", heading, instruction,
-//   items: [{ qNo, label }],
-//   options: ["A — ...", "B — ...", ...] }
-
+// ─────────────────────────────────────────────────────────
+//  7. MATCHING SECTION
+// ─────────────────────────────────────────────────────────
 function MatchingSection({ section, answers, onChange, reviewMode }) {
   const letters = (section.options || []).map((_, i) => String.fromCharCode(65 + i))
 
   return (
-    <SectionWrapper section={section}>
-      {/* Options box */}
-      <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 mb-4">
-        <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Options</p>
-        <div className="space-y-1">
+    <SectionCard section={section}>
+      {/* Options */}
+      <div style={{
+        background: '#f8fafc', border: '1px solid #e2e8f0',
+        borderRadius: 8, padding: '10px 14px', marginBottom: 14,
+      }}>
+        <p style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 7 }}>
+          Options
+        </p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
           {(section.options || []).map((opt, i) => (
-            <p key={i} className="text-sm text-slate-700">
-              <span className="font-bold text-slate-500 mr-1">{letters[i]}.</span>
+            <p key={i} style={{ fontSize: 13, color: '#475569' }}>
+              <span style={{ fontWeight: 700, color: '#64748b', marginRight: 4 }}>{letters[i]}.</span>
               {opt}
             </p>
           ))}
         </div>
       </div>
 
-      {/* Items to match */}
-      <div className="space-y-2.5">
+      {/* Items */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         {(section.items || []).map(item => {
-          const selected = answers[item.qNo]
-          const correct  = reviewMode && selected === item.answer
-          const wrong    = reviewMode && selected && selected !== item.answer
+          const selected  = answers[item.qNo]
+          const correct   = reviewMode && selected === item.answer
+          const wrong     = reviewMode && selected && selected !== item.answer
+          const noAnswer  = reviewMode && !selected
 
           return (
-            <div key={item.qNo} className="flex items-center gap-3 flex-wrap">
-              <span className="text-xs font-bold text-slate-400 w-5">{item.qNo}.</span>
-              <span className="text-sm text-slate-700 flex-1 min-w-[140px]">{item.label}</span>
-
-              {/* Dropdown to pick letter */}
+            <div key={item.qNo} style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+              <span style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', minWidth: 20 }}>{item.qNo}.</span>
+              <span style={{ fontSize: 13, color: '#475569', flex: 1, minWidth: 130 }}>{item.label}</span>
               <select
                 value={selected || ''}
                 onChange={e => !reviewMode && onChange(item.qNo, e.target.value)}
                 disabled={reviewMode}
-                className={`text-sm px-3 py-1.5 rounded-lg border-[1.5px] outline-none transition-all
-                  ${correct ? 'border-green-400 bg-green-50 text-green-800'
-                  : wrong   ? 'border-red-400 bg-red-50 text-red-700'
-                  : selected ? 'border-blue-400 bg-blue-50 text-blue-800'
-                              : 'border-slate-200 bg-white text-slate-700'}`}
+                style={{
+                  fontSize: 13, padding: '6px 10px', borderRadius: 7,
+                  border: `1.5px solid ${correct ? '#4ade80' : wrong ? '#f87171' : noAnswer ? '#f87171' : selected ? '#93c5fd' : '#e2e8f0'}`,
+                  background: correct ? '#f0fdf4' : wrong ? '#fff5f5' : noAnswer ? '#fff5f5' : selected ? '#eff4ff' : '#fff',
+                  color: correct ? '#166534' : wrong ? '#991b1b' : '#475569',
+                  outline: 'none',
+                }}
               >
-                <option value="">Select…</option>
-                {letters.map(l => (
-                  <option key={l} value={l}>{l}</option>
-                ))}
+                <option value="">{noAnswer ? '(not answered)' : 'Select…'}</option>
+                {letters.map(l => <option key={l} value={l}>{l}</option>)}
               </select>
-
-              {reviewMode && wrong && (
-                <span className="text-green-600 text-xs font-semibold">
+              {/* Always show correct answer if wrong or unanswered */}
+              {reviewMode && (wrong || noAnswer) && (
+                <span style={{
+                  fontSize: 11.5, fontWeight: 600, color: '#059669',
+                  background: '#ecfdf5', border: '1px solid #a7f3d0',
+                  borderRadius: 5, padding: '1px 7px',
+                }}>
                   ✓ {item.answer}
                 </span>
               )}
@@ -410,6 +472,6 @@ function MatchingSection({ section, answers, onChange, reviewMode }) {
           )
         })}
       </div>
-    </SectionWrapper>
+    </SectionCard>
   )
 }
