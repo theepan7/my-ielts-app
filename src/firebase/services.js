@@ -1,28 +1,35 @@
 // src/firebase/services.js
 import {
-  collection, doc, getDoc, getDocs,
-  addDoc, query, orderBy, limit,
-  where, serverTimestamp, runTransaction
+  collection, doc, getDoc, getDocs, addDoc,
+  query, orderBy, limit, where,
+  serverTimestamp, runTransaction, setDoc
 } from 'firebase/firestore'
 import { db } from './config'
 
 // ─────────────────────────────────────────────────────────
-//  MINIMUM SCORE TO QUALIFY FOR A BAND / LEADERBOARD
+//  CONSTANTS
 // ─────────────────────────────────────────────────────────
 export const MIN_ANSWERS_FOR_BAND = 11
 
 // ─────────────────────────────────────────────────────────
-//  BAND SCORE HELPER
+//  BAND HELPER
 //  Returns null if correct < MIN_ANSWERS_FOR_BAND
-//  so the result page can show score without a band
 // ─────────────────────────────────────────────────────────
 export function calcBand(correct) {
-  if (correct < MIN_ANSWERS_FOR_BAND) return null   // ← no band below 11
+  if (correct < MIN_ANSWERS_FOR_BAND) return null
   if (correct >= 39) return '9.0'; if (correct >= 37) return '8.5'
   if (correct >= 35) return '8.0'; if (correct >= 33) return '7.5'
   if (correct >= 30) return '7.0'; if (correct >= 27) return '6.5'
   if (correct >= 23) return '6.0'; if (correct >= 20) return '5.5'
   if (correct >= 16) return '5.0'; return '4.5'
+}
+
+// Format seconds → "mm:ss" for display
+export function fmtTime(seconds) {
+  if (!seconds || isNaN(seconds)) return '—'
+  const m = Math.floor(seconds / 60)
+  const s = seconds % 60
+  return `${m}:${s.toString().padStart(2, '0')}`
 }
 
 // ─────────────────────────────────────────────────────────
@@ -63,42 +70,81 @@ export async function fetchTestWithQuestions(testDocId) {
 // ─────────────────────────────────────────────────────────
 //  SAVE RESULT
 //
-//  Rules:
-//  1. Always save the attempt record (every submission)
-//  2. Only update the leaderboard if correct >= MIN_ANSWERS_FOR_BAND (11)
-//  3. Progress counts UNIQUE tests only
-//  4. Average uses BEST score per test
+//  Firestore structure:
+//  /results/{auto}                    ← every attempt (for review history)
+//  /testLeaderboard/{testId}/entries/{userId}  ← best score per user per test
+//  /leaderboard/{userId}              ← overall user progress (unchanged)
+//
+//  Per-test leaderboard tiebreaker:
+//    Primary sort:   correct DESC  (more correct = better)
+//    Tiebreaker:     elapsed ASC   (faster = better when score is equal)
 // ─────────────────────────────────────────────────────────
 
 export async function saveResult(
   userId, userName, testDocId, testId,
-  correct, total, band, partScores
+  correct, total, band, partScores, elapsed = 0
 ) {
   const qualifies = correct >= MIN_ANSWERS_FOR_BAND
 
-  // 1. Always save the attempt record regardless of score
+  // 1. Always save the attempt record
   await addDoc(collection(db, 'results'), {
     userId, userName, testDocId, testId,
     correct, total,
-    band:        qualifies ? band : null,   // null = no band
+    band:        qualifies ? band : null,
+    elapsed:     elapsed,
     percentage:  Math.round((correct / total) * 100),
     partScores,
     qualifiesForLeaderboard: qualifies,
     completedAt: serverTimestamp(),
   })
 
-  // 2. Only update leaderboard if score qualifies
-  if (!qualifies) {
-    console.log(`Score ${correct}/40 is below minimum (${MIN_ANSWERS_FOR_BAND}) — leaderboard not updated.`)
-    return
-  }
+  if (!qualifies) return
 
+  // 2. Update per-test leaderboard entry for this user
+  //    Only keeps their BEST score — if tied on score, keeps FASTEST time
+  const testLbRef = doc(db, 'testLeaderboard', String(testId), 'entries', userId)
+
+  await runTransaction(db, async tx => {
+    const existing = await tx.get(testLbRef)
+
+    if (!existing.exists()) {
+      // First attempt on this test
+      tx.set(testLbRef, {
+        userId,
+        userName,
+        testId,
+        correct,
+        total,
+        band,
+        elapsed,
+        completedAt: serverTimestamp(),
+      })
+    } else {
+      const d = existing.data()
+      const prevCorrect = d.correct || 0
+      const prevElapsed = d.elapsed || 9999
+
+      // Update if: higher score OR same score but faster time
+      const betterScore = correct > prevCorrect
+      const sameScoreFaster = correct === prevCorrect && elapsed < prevElapsed
+
+      if (betterScore || sameScoreFaster) {
+        tx.update(testLbRef, {
+          correct,
+          band,
+          elapsed,
+          completedAt: serverTimestamp(),
+        })
+      }
+    }
+  })
+
+  // 3. Update overall user leaderboard (progress tracking — unchanged)
   const lbRef = doc(db, 'leaderboard', userId)
   await runTransaction(db, async tx => {
     const lbSnap = await tx.get(lbRef)
 
     if (!lbSnap.exists()) {
-      // First qualifying result for this user
       tx.set(lbRef, {
         userId, userName,
         testsCompleted:  1,
@@ -121,26 +167,21 @@ export async function saveResult(
       const alreadyDone = uniqueDone.includes(testId)
       const prevBest    = bestScores[key] || 0
       const newBest     = Math.max(prevBest, correct)
-
       const newBestScores = newBest > prevBest
         ? { ...bestScores, [key]: newBest }
         : bestScores
 
-      // Progress: unique tests only
       const newCount      = alreadyDone ? d.testsCompleted : d.testsCompleted + 1
       const newUniqueDone = alreadyDone ? uniqueDone : [...uniqueDone, testId]
-
-      // Average: sum of best scores / unique count
-      const totalBest  = Object.values(newBestScores).reduce((s, v) => s + v, 0)
-      const newAvg     = parseFloat((totalBest / newUniqueDone.length).toFixed(1))
-      const newAvgBand = calcBand(Math.round(newAvg))
+      const totalBest     = Object.values(newBestScores).reduce((s, v) => s + v, 0)
+      const newAvg        = parseFloat((totalBest / newUniqueDone.length).toFixed(1))
 
       tx.update(lbRef, {
         testsCompleted:  newCount,
         uniqueTestsDone: newUniqueDone,
         bestScores:      newBestScores,
         avgScore:        newAvg,
-        avgBand:         newAvgBand,
+        avgBand:         calcBand(Math.round(newAvg)),
         bestBand:        parseFloat(band) > parseFloat(d.bestBand || '0') ? band : d.bestBand,
         bestScore:       Math.max(d.bestScore || 0, correct),
         lastPlayed:      serverTimestamp(),
@@ -150,26 +191,60 @@ export async function saveResult(
 }
 
 // ─────────────────────────────────────────────────────────
-//  LEADERBOARD — global top 10
+//  PER-TEST LEADERBOARD
+//  Returns top 10 for a specific test
+//  Sorted: correct DESC, then elapsed ASC (faster wins ties)
 // ─────────────────────────────────────────────────────────
 
-export async function fetchLeaderboard() {
+export async function fetchTestLeaderboard(testId) {
   const snap = await getDocs(
-    query(collection(db, 'leaderboard'), orderBy('avgScore', 'desc'), limit(10))
+    query(
+      collection(db, 'testLeaderboard', String(testId), 'entries'),
+      orderBy('correct', 'desc'),
+      orderBy('elapsed', 'asc'),
+      limit(10)
+    )
   )
   return snap.docs.map((d, i) => ({ rank: i + 1, ...d.data() }))
 }
 
+// Get a specific user's entry for a test (for showing their rank)
+export async function fetchUserTestEntry(testId, userId) {
+  const snap = await getDoc(
+    doc(db, 'testLeaderboard', String(testId), 'entries', userId)
+  )
+  if (!snap.exists()) return null
+
+  // Count how many entries have better rank (higher correct, or same correct faster)
+  const entry     = snap.data()
+  const higherSnap = await getDocs(
+    query(
+      collection(db, 'testLeaderboard', String(testId), 'entries'),
+      where('correct', '>', entry.correct)
+    )
+  )
+  const sameScoreFasterSnap = await getDocs(
+    query(
+      collection(db, 'testLeaderboard', String(testId), 'entries'),
+      where('correct',  '==', entry.correct),
+      where('elapsed',  '<',  entry.elapsed)
+    )
+  )
+
+  const rank = higherSnap.size + sameScoreFasterSnap.size + 1
+  return { rank, ...entry }
+}
+
 // ─────────────────────────────────────────────────────────
-//  COUNTRY LEADERBOARD — top 10 for a country
+//  OVERALL USER PROGRESS LEADERBOARD (unchanged)
 // ─────────────────────────────────────────────────────────
 
-export async function fetchCountryLeaderboard(countryCode) {
-  if (!countryCode) return []
+export async function fetchLeaderboard() {
   const snap = await getDocs(
     query(
       collection(db, 'leaderboard'),
-      where('countryCode', '==', countryCode),
+      where('seed', '!=', true),
+      orderBy('seed'),
       orderBy('avgScore', 'desc'),
       limit(10)
     )
@@ -177,22 +252,29 @@ export async function fetchCountryLeaderboard(countryCode) {
   return snap.docs.map((d, i) => ({ rank: i + 1, ...d.data() }))
 }
 
-// ─────────────────────────────────────────────────────────
-//  USER RANK — global + country + total students
-// ─────────────────────────────────────────────────────────
+export async function fetchCountryLeaderboard(countryCode) {
+  if (!countryCode) return []
+  const snap = await getDocs(
+    query(
+      collection(db, 'leaderboard'),
+      where('countryCode', '==', countryCode),
+      where('seed', '!=', true),
+      orderBy('seed'),
+      orderBy('avgScore', 'desc'),
+      limit(10)
+    )
+  )
+  return snap.docs.map((d, i) => ({ rank: i + 1, ...d.data() }))
+}
 
 export async function fetchUserRank(userId) {
   const userSnap = await getDoc(doc(db, 'leaderboard', userId))
   if (!userSnap.exists()) return null
-
   const data    = userSnap.data()
   const userAvg = data.avgScore || 0
 
   const [globalHigher, countryHigher, totalSnap] = await Promise.all([
-    getDocs(query(
-      collection(db, 'leaderboard'),
-      where('avgScore', '>', userAvg)
-    )),
+    getDocs(query(collection(db, 'leaderboard'), where('avgScore', '>', userAvg))),
     data.countryCode
       ? getDocs(query(
           collection(db, 'leaderboard'),
