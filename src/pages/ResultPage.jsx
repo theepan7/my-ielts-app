@@ -5,6 +5,7 @@ import { useEffect }                from 'react'
 import AudioPlayer                  from '../components/AudioPlayer'
 import QuestionRenderer             from '../components/QuestionRenderer'
 import { MIN_ANSWERS_FOR_BAND }     from '../firebase/services'
+import Leaderboard                  from '../components/Leaderboard'
 
 export default function ResultPage() {
   const { state }  = useLocation()
@@ -248,6 +249,16 @@ export default function ResultPage() {
                 ))}
               </div>
             ))}
+          </div>
+        )}
+
+        {/* ── Per-test leaderboard ── */}
+        {state.test && (
+          <div style={{ marginBottom: 20 }}>
+            <Leaderboard
+              testId={state.test.id}
+              testTitle={state.testTitle}
+            />
           </div>
         )}
 
