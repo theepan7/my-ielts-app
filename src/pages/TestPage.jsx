@@ -326,7 +326,7 @@ export default function TestPage({ showToast }) {
     if (user) {
       setSaving(true)
       try {
-        await saveResult(user.uid, user.displayName || user.email, testId, test.id, correct, total, band, partScores)
+        await saveResult(user.uid, user.displayName || user.email, testId, test.id, correct, total, band, partScores, elapsed)
         if (band) {
           showToast('Result saved! Leaderboard updated ✓', 'success')
         } else {
