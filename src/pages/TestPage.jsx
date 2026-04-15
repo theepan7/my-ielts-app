@@ -49,9 +49,7 @@ function AudioPlayer({ audioUrl }) {
       <span style={{ fontSize: 16 }}>🔊</span>
       <div style={{ flex: 1 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          {/* −10s */}
           <IcoBtn onClick={() => skip(-10)}>↺</IcoBtn>
-          {/* Play/Pause */}
           <button onClick={togglePlay} disabled={error} style={{
             width: 32, height: 32, borderRadius: '50%',
             background: '#fff', border: 'none', color: '#1d4ed8',
@@ -61,9 +59,7 @@ function AudioPlayer({ audioUrl }) {
           }}>
             {playing ? '⏸' : '▶'}
           </button>
-          {/* +10s */}
           <IcoBtn onClick={() => skip(10)}>↻</IcoBtn>
-          {/* Progress */}
           <div onClick={seek} style={{
             flex: 1, height: 4, background: 'rgba(255,255,255,.25)',
             borderRadius: 2, cursor: 'pointer',
@@ -73,7 +69,6 @@ function AudioPlayer({ audioUrl }) {
               height: '100%', background: '#fff', borderRadius: 2, transition: 'width .3s',
             }} />
           </div>
-          {/* Time */}
           <span style={{ color: 'rgba(255,255,255,.8)', fontSize: 10.5, fontFamily: 'monospace', minWidth: 76, textAlign: 'right' }}>
             {fmt(current)} / {fmt(duration)}
           </span>
@@ -90,6 +85,7 @@ function AudioPlayer({ audioUrl }) {
     </div>
   )
 }
+
 function IcoBtn({ onClick, children }) {
   return (
     <button onClick={onClick} style={{
@@ -128,7 +124,7 @@ function QuestionTracker({ sections, answers, partIdx, onJump }) {
         </div>
       </div>
 
-      {/* Number grid — click to jump to question */}
+      {/* Number grid */}
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
         {qNos.map(n => {
           const done = answers[n] !== undefined && answers[n] !== ''
@@ -423,8 +419,19 @@ export default function TestPage({ showToast }) {
               </span>
             </div>
             {/* Exit */}
-            <button onClick={() => { if (window.confirm('Exit test? Your progress will be lost.')) { clearInterval(timerRef.current); navigate('/') } }}
-              style={{ padding: '7px 14px', borderRadius: 7, background: 'transparent', border: '1px solid #cbd5e1', color: '#475569', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', fontFamily: 'Plus Jakarta Sans, sans-serif' }}>
+            <button
+              onClick={() => {
+                if (window.confirm('Exit test? Your progress will be lost.')) {
+                  clearInterval(timerRef.current)
+                  navigate('/')
+                }
+              }}
+              style={{
+                padding: '7px 14px', borderRadius: 7, background: 'transparent',
+                border: '1px solid #cbd5e1', color: '#475569', fontSize: 12.5,
+                fontWeight: 600, cursor: 'pointer', fontFamily: 'Plus Jakarta Sans, sans-serif',
+              }}
+            >
               ← Exit
             </button>
           </div>
@@ -474,127 +481,127 @@ export default function TestPage({ showToast }) {
       </div>
 
       {/* ════ SCROLLABLE QUESTIONS + LEADERBOARD SIDEBAR ══ */}
-      <div style={{ maxWidth: 1160, margin: '0 auto', padding: '18px 20px 0', display: 'grid', gridTemplateColumns: '1fr 290px', gap: 20, alignItems: 'start' }}>
-      <div>{/* left column — questions */}
+      <div style={{
+        maxWidth: 1160, margin: '0 auto', padding: '18px 20px 0',
+        display: 'grid', gridTemplateColumns: '1fr 290px', gap: 20, alignItems: 'start',
+      }}>
 
-        {/* Part label bar */}
-        {currentPart && (
-          <div style={{
-            background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10,
-            padding: '10px 16px', marginBottom: 14,
-            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-            boxShadow: '0 1px 3px rgba(15,23,42,.06)',
-          }}>
-            <div>
-              <span style={{ fontWeight: 700, color: '#0f172a', fontSize: 13.5 }}>
-                {currentPart.title || `Part ${currentPart.partNo}`}
-              </span>
-              <span style={{ color: '#94a3b8', fontSize: 12.5, marginLeft: 8 }}>
-                Questions {partIdx * 10 + 1}–{(partIdx + 1) * 10}
+        {/* ── LEFT COLUMN — questions ── */}
+        <div>
+
+          {/* Part label bar */}
+          {currentPart && (
+            <div style={{
+              background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10,
+              padding: '10px 16px', marginBottom: 14,
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+              boxShadow: '0 1px 3px rgba(15,23,42,.06)',
+            }}>
+              <div>
+                <span style={{ fontWeight: 700, color: '#0f172a', fontSize: 13.5 }}>
+                  {currentPart.title || `Part ${currentPart.partNo}`}
+                </span>
+                <span style={{ color: '#94a3b8', fontSize: 12.5, marginLeft: 8 }}>
+                  Questions {partIdx * 10 + 1}–{(partIdx + 1) * 10}
+                </span>
+              </div>
+              <span style={{
+                fontSize: 11, fontWeight: 600, color: '#64748b',
+                background: '#f1f5f9', padding: '3px 10px', borderRadius: 20,
+              }}>
+                Part {partIdx + 1} of {totalParts}
               </span>
             </div>
-            <span style={{
-              fontSize: 11, fontWeight: 600, color: '#64748b',
-              background: '#f1f5f9', padding: '3px 10px', borderRadius: 20,
-            }}>
-              Part {partIdx + 1} of {totalParts}
-            </span>
+          )}
+
+          {/* Questions */}
+          {(currentPart?.sections || []).map(section => (
+            <div key={section.id}>
+              <QuestionRenderer
+                section={section}
+                answers={answers}
+                onChange={setAnswer}
+                reviewMode={false}
+              />
+            </div>
+          ))}
+
+          {/* Question Number Tracker */}
+          <QuestionTracker
+            sections={currentPart?.sections || []}
+            answers={answers}
+            partIdx={partIdx}
+            onJump={jumpToQuestion}
+          />
+
+          {/* Navigation Buttons */}
+          <div style={{
+            background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10,
+            padding: '14px 18px', marginTop: 12,
+            display: 'flex', justifyContent: 'space-between',
+            alignItems: 'center', flexWrap: 'wrap', gap: 10,
+            boxShadow: '0 1px 3px rgba(15,23,42,.06)',
+          }}>
+            <p style={{ fontSize: 13, color: '#475569', margin: 0 }}>
+              Total answered:&nbsp;
+              <strong style={{ color: '#2563eb' }}>{answered}</strong>
+              <span style={{ color: '#94a3b8' }}> / {runTotal}</span>
+            </p>
+
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              {!isFirstPart && (
+                <button
+                  onClick={() => { setPartIdx(i => i - 1); window.scrollTo({ top: 0, behavior: 'smooth' }) }}
+                  style={{
+                    padding: '10px 20px', borderRadius: 8,
+                    background: 'transparent', border: '1.5px solid #cbd5e1',
+                    color: '#475569', fontSize: 13.5, fontWeight: 600,
+                    cursor: 'pointer', fontFamily: 'Plus Jakarta Sans, sans-serif',
+                  }}
+                >
+                  ← Previous Part
+                </button>
+              )}
+
+              {!isLastPart && (
+                <button
+                  onClick={() => { setPartIdx(i => i + 1); window.scrollTo({ top: 0, behavior: 'smooth' }) }}
+                  style={{
+                    padding: '10px 20px', borderRadius: 8,
+                    background: '#f0f9ff', border: '1.5px solid #93c5fd',
+                    color: '#1d4ed8', fontSize: 13.5, fontWeight: 600,
+                    cursor: 'pointer', fontFamily: 'Plus Jakarta Sans, sans-serif',
+                  }}
+                >
+                  Next Part →
+                </button>
+              )}
+
+              {isLastPart && (
+                <button
+                  onClick={() => handleFinish(false)}
+                  disabled={saving}
+                  style={{
+                    padding: '10px 26px', borderRadius: 8, border: 'none',
+                    background: saving
+                      ? '#94a3b8'
+                      : 'linear-gradient(135deg,#2563eb,#7c3aed)',
+                    color: '#fff', fontSize: 14, fontWeight: 700,
+                    cursor: saving ? 'not-allowed' : 'pointer',
+                    fontFamily: 'Plus Jakarta Sans, sans-serif',
+                    boxShadow: saving ? 'none' : '0 4px 14px rgba(37,99,235,.3)',
+                    transition: 'all .2s', opacity: saving ? .7 : 1,
+                  }}
+                >
+                  {saving ? 'Saving…' : 'Finish & See Results →'}
+                </button>
+              )}
+            </div>
           </div>
-        )}
 
-        {/* Questions — wrapped with id for jump */}
-        {(currentPart?.sections || []).map(section => (
-          <div key={section.id}>
-            <QuestionRenderer
-              section={section}
-              answers={answers}
-              onChange={setAnswer}
-              reviewMode={false}
-            />
-          </div>
-        ))}
+        </div>{/* end left column */}
 
-        {/* ── Question Number Tracker ── */}
-        <QuestionTracker
-          sections={currentPart?.sections || []}
-          answers={answers}
-          partIdx={partIdx}
-          onJump={jumpToQuestion}
-        />
-
-        {/* ── Navigation Buttons ── */}
-        <div style={{
-          background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10,
-          padding: '14px 18px', marginTop: 12,
-          display: 'flex', justifyContent: 'space-between',
-          alignItems: 'center', flexWrap: 'wrap', gap: 10,
-          boxShadow: '0 1px 3px rgba(15,23,42,.06)',
-        }}>
-          {/* Answered count */}
-          <p style={{ fontSize: 13, color: '#475569', margin: 0 }}>
-            Total answered:&nbsp;
-            <strong style={{ color: '#2563eb' }}>{answered}</strong>
-            <span style={{ color: '#94a3b8' }}> / {runTotal}</span>
-          </p>
-
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            {/* Previous — Parts 2, 3, 4 */}
-            {!isFirstPart && (
-              <button
-                onClick={() => { setPartIdx(i => i - 1); window.scrollTo({ top: 0, behavior: 'smooth' }) }}
-                style={{
-                  padding: '10px 20px', borderRadius: 8,
-                  background: 'transparent', border: '1.5px solid #cbd5e1',
-                  color: '#475569', fontSize: 13.5, fontWeight: 600,
-                  cursor: 'pointer', fontFamily: 'Plus Jakarta Sans, sans-serif',
-                }}
-              >
-                ← Previous Part
-              </button>
-            )}
-
-            {/* Next Part — Parts 1, 2, 3 only */}
-            {!isLastPart && (
-              <button
-                onClick={() => { setPartIdx(i => i + 1); window.scrollTo({ top: 0, behavior: 'smooth' }) }}
-                style={{
-                  padding: '10px 20px', borderRadius: 8,
-                  background: '#f0f9ff', border: '1.5px solid #93c5fd',
-                  color: '#1d4ed8', fontSize: 13.5, fontWeight: 600,
-                  cursor: 'pointer', fontFamily: 'Plus Jakarta Sans, sans-serif',
-                }}
-              >
-                Next Part →
-              </button>
-            )}
-
-            {/* Finish & See Results — Part 4 ONLY */}
-            {isLastPart && (
-              <button
-                onClick={() => handleFinish(false)}
-                disabled={saving}
-                style={{
-                  padding: '10px 26px', borderRadius: 8, border: 'none',
-                  background: saving
-                    ? '#94a3b8'
-                    : 'linear-gradient(135deg,#2563eb,#7c3aed)',
-                  color: '#fff', fontSize: 14, fontWeight: 700,
-                  cursor: saving ? 'not-allowed' : 'pointer',
-                  fontFamily: 'Plus Jakarta Sans, sans-serif',
-                  boxShadow: saving ? 'none' : '0 4px 14px rgba(37,99,235,.3)',
-                  transition: 'all .2s', opacity: saving ? .7 : 1,
-                }}
-              >
-                {saving ? 'Saving…' : 'Finish & See Results →'}
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
-
-      </div>{/* end left column */}
-
-        {/* right column — per-test leaderboard */}
+        {/* ── RIGHT COLUMN — leaderboard ── */}
         <div style={{ position: 'sticky', top: 80 }}>
           {test && (
             <TestLeaderboard
