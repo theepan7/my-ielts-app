@@ -2,7 +2,7 @@
 import {
   collection, doc, getDoc, getDocs, addDoc,
   query, orderBy, limit, where,
-  serverTimestamp, runTransaction, setDoc
+  serverTimestamp, runTransaction
 } from 'firebase/firestore'
 import { db } from './config'
 
@@ -11,10 +11,6 @@ import { db } from './config'
 // ─────────────────────────────────────────────────────────
 export const MIN_ANSWERS_FOR_BAND = 11
 
-// ─────────────────────────────────────────────────────────
-//  BAND HELPER
-//  Returns null if correct < MIN_ANSWERS_FOR_BAND
-// ─────────────────────────────────────────────────────────
 export function calcBand(correct) {
   if (correct < MIN_ANSWERS_FOR_BAND) return null
   if (correct >= 39) return '9.0'; if (correct >= 37) return '8.5'
@@ -24,7 +20,6 @@ export function calcBand(correct) {
   if (correct >= 16) return '5.0'; return '4.5'
 }
 
-// Format seconds → "mm:ss" for display
 export function fmtTime(seconds) {
   if (!seconds || isNaN(seconds)) return '—'
   const m = Math.floor(seconds / 60)
@@ -70,14 +65,10 @@ export async function fetchTestWithQuestions(testDocId) {
 // ─────────────────────────────────────────────────────────
 //  SAVE RESULT
 //
-//  Firestore structure:
-//  /results/{auto}                    ← every attempt (for review history)
-//  /testLeaderboard/{testId}/entries/{userId}  ← best score per user per test
-//  /leaderboard/{userId}              ← overall user progress (unchanged)
-//
-//  Per-test leaderboard tiebreaker:
-//    Primary sort:   correct DESC  (more correct = better)
-//    Tiebreaker:     elapsed ASC   (faster = better when score is equal)
+//  Writes to three places:
+//  1. /results/{auto}                        — every attempt
+//  2. /testLeaderboard/{testId}/entries/{uid} — best per user per test
+//  3. /leaderboard/{userId}                  — overall user progress
 // ─────────────────────────────────────────────────────────
 
 export async function saveResult(
@@ -86,12 +77,12 @@ export async function saveResult(
 ) {
   const qualifies = correct >= MIN_ANSWERS_FOR_BAND
 
-  // 1. Always save the attempt record
+  // 1. Always save attempt record
   await addDoc(collection(db, 'results'), {
     userId, userName, testDocId, testId,
     correct, total,
     band:        qualifies ? band : null,
-    elapsed:     elapsed,
+    elapsed,
     percentage:  Math.round((correct / total) * 100),
     partScores,
     qualifiesForLeaderboard: qualifies,
@@ -100,50 +91,29 @@ export async function saveResult(
 
   if (!qualifies) return
 
-  // 2. Update per-test leaderboard entry for this user
-  //    Only keeps their BEST score — if tied on score, keeps FASTEST time
+  // 2. Per-test leaderboard — keep best score, ties broken by fastest time
   const testLbRef = doc(db, 'testLeaderboard', String(testId), 'entries', userId)
-
   await runTransaction(db, async tx => {
     const existing = await tx.get(testLbRef)
-
     if (!existing.exists()) {
-      // First attempt on this test
       tx.set(testLbRef, {
-        userId,
-        userName,
-        testId,
-        correct,
-        total,
-        band,
-        elapsed,
+        userId, userName, testId, correct, total, band, elapsed,
         completedAt: serverTimestamp(),
       })
     } else {
       const d = existing.data()
-      const prevCorrect = d.correct || 0
-      const prevElapsed = d.elapsed || 9999
-
-      // Update if: higher score OR same score but faster time
-      const betterScore = correct > prevCorrect
-      const sameScoreFaster = correct === prevCorrect && elapsed < prevElapsed
-
+      const betterScore      = correct > (d.correct || 0)
+      const sameScoreFaster  = correct === d.correct && elapsed < (d.elapsed || 9999)
       if (betterScore || sameScoreFaster) {
-        tx.update(testLbRef, {
-          correct,
-          band,
-          elapsed,
-          completedAt: serverTimestamp(),
-        })
+        tx.update(testLbRef, { correct, band, elapsed, completedAt: serverTimestamp() })
       }
     }
   })
 
-  // 3. Update overall user leaderboard (progress tracking — unchanged)
+  // 3. Overall leaderboard — unique tests + avg score
   const lbRef = doc(db, 'leaderboard', userId)
   await runTransaction(db, async tx => {
     const lbSnap = await tx.get(lbRef)
-
     if (!lbSnap.exists()) {
       tx.set(lbRef, {
         userId, userName,
@@ -167,15 +137,11 @@ export async function saveResult(
       const alreadyDone = uniqueDone.includes(testId)
       const prevBest    = bestScores[key] || 0
       const newBest     = Math.max(prevBest, correct)
-      const newBestScores = newBest > prevBest
-        ? { ...bestScores, [key]: newBest }
-        : bestScores
-
+      const newBestScores = newBest > prevBest ? { ...bestScores, [key]: newBest } : bestScores
       const newCount      = alreadyDone ? d.testsCompleted : d.testsCompleted + 1
       const newUniqueDone = alreadyDone ? uniqueDone : [...uniqueDone, testId]
       const totalBest     = Object.values(newBestScores).reduce((s, v) => s + v, 0)
       const newAvg        = parseFloat((totalBest / newUniqueDone.length).toFixed(1))
-
       tx.update(lbRef, {
         testsCompleted:  newCount,
         uniqueTestsDone: newUniqueDone,
@@ -191,81 +157,65 @@ export async function saveResult(
 }
 
 // ─────────────────────────────────────────────────────────
-//  PER-TEST LEADERBOARD
-//  Returns top 10 for a specific test
-//  Sorted: correct DESC, then elapsed ASC (faster wins ties)
+//  PER-TEST LEADERBOARD (TestPage + ResultPage)
+//  Top 10: correct DESC, elapsed ASC (faster wins ties)
 // ─────────────────────────────────────────────────────────
 
-export async function fetchTestLeaderboard(testId) {
+export async function fetchTestLeaderboard(testId, count = 10) {
   const snap = await getDocs(
     query(
       collection(db, 'testLeaderboard', String(testId), 'entries'),
       orderBy('correct', 'desc'),
       orderBy('elapsed', 'asc'),
-      limit(10)
+      limit(count)
     )
   )
   return snap.docs.map((d, i) => ({ rank: i + 1, ...d.data() }))
 }
 
-// Get a specific user's entry for a test (for showing their rank)
 export async function fetchUserTestEntry(testId, userId) {
-  const snap = await getDoc(
-    doc(db, 'testLeaderboard', String(testId), 'entries', userId)
-  )
+  const snap = await getDoc(doc(db, 'testLeaderboard', String(testId), 'entries', userId))
   if (!snap.exists()) return null
+  const entry = snap.data()
 
-  // Count how many entries have better rank (higher correct, or same correct faster)
-  const entry     = snap.data()
-  const higherSnap = await getDocs(
-    query(
+  const [higherSnap, fasterSnap] = await Promise.all([
+    getDocs(query(
       collection(db, 'testLeaderboard', String(testId), 'entries'),
       where('correct', '>', entry.correct)
-    )
-  )
-  const sameScoreFasterSnap = await getDocs(
-    query(
+    )),
+    getDocs(query(
       collection(db, 'testLeaderboard', String(testId), 'entries'),
-      where('correct',  '==', entry.correct),
-      where('elapsed',  '<',  entry.elapsed)
-    )
-  )
+      where('correct', '==', entry.correct),
+      where('elapsed', '<', entry.elapsed)
+    )),
+  ])
 
-  const rank = higherSnap.size + sameScoreFasterSnap.size + 1
-  return { rank, ...entry }
+  return { rank: higherSnap.size + fasterSnap.size + 1, ...entry }
 }
 
 // ─────────────────────────────────────────────────────────
-//  OVERALL USER PROGRESS LEADERBOARD (unchanged)
+//  HOMEPAGE LEADERBOARD
+//  Top 5 real users ranked by:
+//  - Highest avg band score (more tests at high band = better)
+//  Excludes seed users
 // ─────────────────────────────────────────────────────────
 
-export async function fetchLeaderboard() {
+export async function fetchHomeLeaderboard() {
   const snap = await getDocs(
     query(
       collection(db, 'leaderboard'),
       where('seed', '!=', true),
       orderBy('seed'),
       orderBy('avgScore', 'desc'),
-      limit(10)
+      limit(5)
     )
   )
   return snap.docs.map((d, i) => ({ rank: i + 1, ...d.data() }))
 }
 
-export async function fetchCountryLeaderboard(countryCode) {
-  if (!countryCode) return []
-  const snap = await getDocs(
-    query(
-      collection(db, 'leaderboard'),
-      where('countryCode', '==', countryCode),
-      where('seed', '!=', true),
-      orderBy('seed'),
-      orderBy('avgScore', 'desc'),
-      limit(10)
-    )
-  )
-  return snap.docs.map((d, i) => ({ rank: i + 1, ...d.data() }))
-}
+// ─────────────────────────────────────────────────────────
+//  USER OVERALL RANK (for progress widget)
+// ─────────────────────────────────────────────────────────
 
 export async function fetchUserRank(userId) {
   const userSnap = await getDoc(doc(db, 'leaderboard', userId))
@@ -279,7 +229,7 @@ export async function fetchUserRank(userId) {
       ? getDocs(query(
           collection(db, 'leaderboard'),
           where('countryCode', '==', data.countryCode),
-          where('avgScore',    '>',  userAvg)
+          where('avgScore', '>', userAvg)
         ))
       : Promise.resolve({ size: 0 }),
     getDocs(collection(db, 'leaderboard')),
