@@ -1,9 +1,11 @@
+import React from 'react'
 // src/pages/TestPage.jsx
 import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate }       from 'react-router-dom'
 import { useAuth }                      from '../context/AuthContext'
 import { fetchTestWithQuestions, saveResult, calcBand } from '../firebase/services'
 import QuestionRenderer from '../components/QuestionRenderer'
+import { TestLeaderboard } from '../components/Leaderboard'
 
 // ─────────────────────────────────────────────────────────
 //  AUDIO PLAYER
@@ -471,8 +473,9 @@ export default function TestPage({ showToast }) {
         </div>
       </div>
 
-      {/* ════ SCROLLABLE QUESTIONS ════════════════════════ */}
-      <div style={{ maxWidth: 800, margin: '0 auto', padding: '18px 20px 0' }}>
+      {/* ════ SCROLLABLE QUESTIONS + LEADERBOARD SIDEBAR ══ */}
+      <div style={{ maxWidth: 1160, margin: '0 auto', padding: '18px 20px 0', display: 'grid', gridTemplateColumns: '1fr 290px', gap: 20, alignItems: 'start' }}>
+      <div>{/* left column — questions */}
 
         {/* Part label bar */}
         {currentPart && (
@@ -588,6 +591,20 @@ export default function TestPage({ showToast }) {
           </div>
         </div>
       </div>
+
+      </div>{/* end left column */}
+
+        {/* right column — per-test leaderboard */}
+        <div style={{ position: 'sticky', top: 80 }}>
+          {test && (
+            <TestLeaderboard
+              testId={test.id}
+              testTitle={test.title}
+            />
+          )}
+        </div>
+
+      </div>{/* end grid */}
 
       <style>{`
         @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.4} }
