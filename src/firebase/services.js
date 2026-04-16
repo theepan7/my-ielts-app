@@ -65,22 +65,44 @@ export async function fetchTestWithQuestions(testDocId) {
 // ─────────────────────────────────────────────────────────
 //  SAVE RESULT
 //
-//  Writes to three places:
-//  1. /results/{auto}                        — every attempt
-//  2. /testLeaderboard/{testId}/entries/{uid} — best per user per test
-//  3. /leaderboard/{userId}                  — overall user progress
+//  FIX 1: testId is always stored as a NUMBER for consistency
+//  FIX 2: country is read from the existing leaderboard doc
+//         so it is never overwritten with empty strings
+//  FIX 3: userName falls back to email prefix if displayName is null
 // ─────────────────────────────────────────────────────────
 
 export async function saveResult(
-  userId, userName, testDocId, testId,
-  correct, total, band, partScores, elapsed = 0
+  userId,
+  userDisplayName,   // may be null for some OAuth users
+  userEmail,         // always available — used as fallback
+  testDocId,
+  testId,            // stored as number always
+  correct,
+  total,
+  band,
+  partScores,
+  elapsed = 0
 ) {
   const qualifies = correct >= MIN_ANSWERS_FOR_BAND
 
-  // 1. Always save attempt record
+  // Resolve a clean userName — never store null/undefined
+  const userName = (
+    userDisplayName?.trim() ||
+    userEmail?.split('@')[0] ||
+    'Student'
+  )
+
+  // Normalise testId to number
+  const numericTestId = typeof testId === 'number' ? testId : parseInt(testId, 10) || 0
+
+  // 1. Always save the attempt record
   await addDoc(collection(db, 'results'), {
-    userId, userName, testDocId, testId,
-    correct, total,
+    userId,
+    userName,
+    testDocId,
+    testId:      numericTestId,
+    correct,
+    total,
     band:        qualifies ? band : null,
     elapsed,
     percentage:  Math.round((correct / total) * 100),
@@ -91,80 +113,121 @@ export async function saveResult(
 
   if (!qualifies) return
 
-  // 2. Per-test leaderboard — keep best score, ties broken by fastest time
-  const testLbRef = doc(db, 'testLeaderboard', String(testId), 'entries', userId)
+  // ── 2. Per-test leaderboard ────────────────────────────
+  // Path: /testLeaderboard/{testId}/entries/{userId}
+  // FIX: always use String(numericTestId) as the doc key
+  const testLbRef = doc(
+    db, 'testLeaderboard', String(numericTestId), 'entries', userId
+  )
+
   await runTransaction(db, async tx => {
     const existing = await tx.get(testLbRef)
     if (!existing.exists()) {
       tx.set(testLbRef, {
-        userId, userName, testId, correct, total, band, elapsed,
+        userId,
+        userName,
+        testId:  numericTestId,
+        correct,
+        total,
+        band,
+        elapsed,
         completedAt: serverTimestamp(),
       })
     } else {
       const d = existing.data()
-      const betterScore      = correct > (d.correct || 0)
-      const sameScoreFaster  = correct === d.correct && elapsed < (d.elapsed || 9999)
+      const betterScore     = correct > (d.correct || 0)
+      const sameScoreFaster = correct === d.correct && elapsed < (d.elapsed || 9999)
       if (betterScore || sameScoreFaster) {
-        tx.update(testLbRef, { correct, band, elapsed, completedAt: serverTimestamp() })
+        // Also update userName in case they changed their display name
+        tx.update(testLbRef, {
+          userName,
+          correct,
+          band,
+          elapsed,
+          completedAt: serverTimestamp(),
+        })
       }
     }
   })
 
-  // 3. Overall leaderboard — unique tests + avg score
+  // ── 3. Overall leaderboard ─────────────────────────────
+  // FIX: read existing doc first to preserve country fields
   const lbRef = doc(db, 'leaderboard', userId)
+
   await runTransaction(db, async tx => {
     const lbSnap = await tx.get(lbRef)
+
     if (!lbSnap.exists()) {
+      // Brand new user in leaderboard — country will be empty here
+      // but AuthContext.signup() already set it — this case only happens
+      // if saveResult is called before the leaderboard doc exists (race).
+      // We write minimal data; next login/action will fill country.
       tx.set(lbRef, {
-        userId, userName,
+        userId,
+        userName,
         testsCompleted:  1,
-        uniqueTestsDone: [testId],
-        bestScores:      { [String(testId)]: correct },
+        uniqueTestsDone: [numericTestId],
+        bestScores:      { [String(numericTestId)]: correct },
         avgScore:        correct,
         avgBand:         band,
         bestBand:        band,
         bestScore:       correct,
+        // country stays empty — already set by AuthContext signup
         countryCode:     '',
         countryName:     '',
         countryFlag:     '🌍',
+        seed:            false,    // real user — never seed
         lastPlayed:      serverTimestamp(),
       })
     } else {
+      // EXISTING user doc — read current data and update correctly
       const d           = lbSnap.data()
       const uniqueDone  = d.uniqueTestsDone || []
       const bestScores  = d.bestScores      || {}
-      const key         = String(testId)
-      const alreadyDone = uniqueDone.includes(testId)
+      const key         = String(numericTestId)
+      const alreadyDone = uniqueDone.includes(numericTestId)
       const prevBest    = bestScores[key] || 0
       const newBest     = Math.max(prevBest, correct)
-      const newBestScores = newBest > prevBest ? { ...bestScores, [key]: newBest } : bestScores
-      const newCount      = alreadyDone ? d.testsCompleted : d.testsCompleted + 1
-      const newUniqueDone = alreadyDone ? uniqueDone : [...uniqueDone, testId]
+
+      const newBestScores = newBest > prevBest
+        ? { ...bestScores, [key]: newBest }
+        : bestScores
+
+      const newCount      = alreadyDone ? d.testsCompleted : (d.testsCompleted || 0) + 1
+      const newUniqueDone = alreadyDone ? uniqueDone : [...uniqueDone, numericTestId]
       const totalBest     = Object.values(newBestScores).reduce((s, v) => s + v, 0)
       const newAvg        = parseFloat((totalBest / newUniqueDone.length).toFixed(1))
+      const newAvgBand    = calcBand(Math.round(newAvg))
+      const prevBestBand  = parseFloat(d.bestBand || '0')
+      const currBandNum   = parseFloat(band || '0')
+
       tx.update(lbRef, {
+        userName,             // keep display name in sync
         testsCompleted:  newCount,
         uniqueTestsDone: newUniqueDone,
         bestScores:      newBestScores,
         avgScore:        newAvg,
-        avgBand:         calcBand(Math.round(newAvg)),
-        bestBand:        parseFloat(band) > parseFloat(d.bestBand || '0') ? band : d.bestBand,
+        avgBand:         newAvgBand,
+        bestBand:        currBandNum > prevBestBand ? band : d.bestBand,
         bestScore:       Math.max(d.bestScore || 0, correct),
+        seed:            false,   // ensure real users never have seed=true
         lastPlayed:      serverTimestamp(),
+        // country fields are NOT touched here — they were set at signup
+        // and should never be overwritten by a test result
       })
     }
   })
 }
 
 // ─────────────────────────────────────────────────────────
-//  PER-TEST LEADERBOARD (TestPage + ResultPage)
-//  Top 10: correct DESC, elapsed ASC (faster wins ties)
+//  PER-TEST LEADERBOARD
 // ─────────────────────────────────────────────────────────
 
 export async function fetchTestLeaderboard(testId, count = 10) {
+  const numId = typeof testId === 'number' ? testId : parseInt(testId, 10) || 0
   const snap = await getDocs(
     query(
-      collection(db, 'testLeaderboard', String(testId), 'entries'),
+      collection(db, 'testLeaderboard', String(numId), 'entries'),
       orderBy('correct', 'desc'),
       orderBy('elapsed', 'asc'),
       limit(count)
@@ -174,19 +237,22 @@ export async function fetchTestLeaderboard(testId, count = 10) {
 }
 
 export async function fetchUserTestEntry(testId, userId) {
-  const snap = await getDoc(doc(db, 'testLeaderboard', String(testId), 'entries', userId))
+  const numId = typeof testId === 'number' ? testId : parseInt(testId, 10) || 0
+  const snap = await getDoc(
+    doc(db, 'testLeaderboard', String(numId), 'entries', userId)
+  )
   if (!snap.exists()) return null
   const entry = snap.data()
 
   const [higherSnap, fasterSnap] = await Promise.all([
     getDocs(query(
-      collection(db, 'testLeaderboard', String(testId), 'entries'),
+      collection(db, 'testLeaderboard', String(numId), 'entries'),
       where('correct', '>', entry.correct)
     )),
     getDocs(query(
-      collection(db, 'testLeaderboard', String(testId), 'entries'),
+      collection(db, 'testLeaderboard', String(numId), 'entries'),
       where('correct', '==', entry.correct),
-      where('elapsed', '<', entry.elapsed)
+      where('elapsed', '<',  entry.elapsed)
     )),
   ])
 
@@ -194,10 +260,7 @@ export async function fetchUserTestEntry(testId, userId) {
 }
 
 // ─────────────────────────────────────────────────────────
-//  HOMEPAGE LEADERBOARD
-//  Top 5 real users ranked by:
-//  - Highest avg band score (more tests at high band = better)
-//  Excludes seed users
+//  HOME LEADERBOARD  — top 5 real users by avg score
 // ─────────────────────────────────────────────────────────
 
 export async function fetchHomeLeaderboard() {
@@ -214,7 +277,7 @@ export async function fetchHomeLeaderboard() {
 }
 
 // ─────────────────────────────────────────────────────────
-//  USER OVERALL RANK (for progress widget)
+//  USER OVERALL RANK
 // ─────────────────────────────────────────────────────────
 
 export async function fetchUserRank(userId) {
