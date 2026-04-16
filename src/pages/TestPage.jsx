@@ -1,4 +1,3 @@
-import React from 'react'
 // src/pages/TestPage.jsx
 import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate }       from 'react-router-dom'
@@ -7,9 +6,7 @@ import { fetchTestWithQuestions, saveResult, calcBand } from '../firebase/servic
 import QuestionRenderer from '../components/QuestionRenderer'
 import { TestLeaderboard } from '../components/Leaderboard'
 
-// ─────────────────────────────────────────────────────────
-//  AUDIO PLAYER
-// ─────────────────────────────────────────────────────────
+// ── Audio Player ──────────────────────────────────────────
 function AudioPlayer({ audioUrl }) {
   const audioRef              = useRef(null)
   const [playing, setPlaying] = useState(false)
@@ -24,59 +21,49 @@ function AudioPlayer({ audioUrl }) {
 
   function togglePlay() {
     if (!audioRef.current || error) return
-    playing ? audioRef.current.pause() : audioRef.current.play().catch(() => setError(true))
+    if (playing) { audioRef.current.pause() }
+    else { audioRef.current.play().catch(() => setError(true)) }
     setPlaying(p => !p)
   }
+
   function skip(sec) {
     if (!audioRef.current) return
     audioRef.current.currentTime = Math.max(0, (audioRef.current.currentTime || 0) + sec)
   }
+
   function seek(e) {
     if (!audioRef.current || !duration) return
-    const r = e.currentTarget.getBoundingClientRect()
-    audioRef.current.currentTime = ((e.clientX - r.left) / r.width) * duration
+    const rect = e.currentTarget.getBoundingClientRect()
+    audioRef.current.currentTime = ((e.clientX - rect.left) / rect.width) * duration
   }
+
   function fmt(t) {
     if (!t || isNaN(t)) return '0:00'
     return `${Math.floor(t / 60)}:${Math.floor(t % 60).toString().padStart(2, '0')}`
   }
 
+  const progress = duration ? (current / duration) * 100 : 0
+
   return (
-    <div style={{
-      background: 'linear-gradient(135deg,#1e40af,#1d4ed8)',
-      padding: '9px 20px', display: 'flex', alignItems: 'center', gap: 12,
-    }}>
-      <span style={{ fontSize: 16 }}>🔊</span>
+    <div style={{ background: 'linear-gradient(135deg,#1e40af,#1d4ed8)', padding: '10px 18px', display: 'flex', alignItems: 'center', gap: 12 }}>
+      <div style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(255,255,255,.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, flexShrink: 0 }}>🔊</div>
       <div style={{ flex: 1 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <IcoBtn onClick={() => skip(-10)}>↺</IcoBtn>
-          <button onClick={togglePlay} disabled={error} style={{
-            width: 32, height: 32, borderRadius: '50%',
-            background: '#fff', border: 'none', color: '#1d4ed8',
-            fontWeight: 700, fontSize: 13, cursor: error ? 'default' : 'pointer',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            opacity: error ? .4 : 1, flexShrink: 0,
-          }}>
+          <button onClick={() => skip(-10)} title="-10s" style={{ width: 26, height: 26, borderRadius: '50%', background: 'rgba(255,255,255,.15)', border: 'none', color: '#fff', cursor: 'pointer', fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>↺</button>
+          <button onClick={togglePlay} disabled={error} style={{ width: 32, height: 32, borderRadius: '50%', background: '#fff', border: 'none', color: '#1d4ed8', fontWeight: 700, fontSize: 13, cursor: error ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: error ? .4 : 1 }}>
             {playing ? '⏸' : '▶'}
           </button>
-          <IcoBtn onClick={() => skip(10)}>↻</IcoBtn>
-          <div onClick={seek} style={{
-            flex: 1, height: 4, background: 'rgba(255,255,255,.25)',
-            borderRadius: 2, cursor: 'pointer',
-          }}>
-            <div style={{
-              width: `${duration ? (current / duration) * 100 : 0}%`,
-              height: '100%', background: '#fff', borderRadius: 2, transition: 'width .3s',
-            }} />
+          <button onClick={() => skip(10)} title="+10s" style={{ width: 26, height: 26, borderRadius: '50%', background: 'rgba(255,255,255,.15)', border: 'none', color: '#fff', cursor: 'pointer', fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>↻</button>
+          <div onClick={seek} style={{ flex: 1, height: 5, background: 'rgba(255,255,255,.25)', borderRadius: 3, cursor: 'pointer' }}>
+            <div style={{ width: `${progress}%`, height: '100%', background: '#fff', borderRadius: 3, transition: 'width .3s' }} />
           </div>
-          <span style={{ color: 'rgba(255,255,255,.8)', fontSize: 10.5, fontFamily: 'monospace', minWidth: 76, textAlign: 'right' }}>
+          <span style={{ color: 'rgba(255,255,255,.8)', fontSize: 11, fontFamily: 'monospace', minWidth: 80, textAlign: 'right' }}>
             {fmt(current)} / {fmt(duration)}
           </span>
         </div>
-        {error && <p style={{ color: '#fca5a5', fontSize: 10.5, marginTop: 3 }}>⚠ Audio not found — check Firestore audioUrl</p>}
+        {error && <p style={{ color: '#fca5a5', fontSize: 10.5, marginTop: 4 }}>⚠ Audio file not found — check Firebase Storage URL</p>}
       </div>
-      <audio
-        ref={audioRef} src={audioUrl}
+      <audio ref={audioRef} src={audioUrl}
         onTimeUpdate={() => setCurrent(audioRef.current?.currentTime || 0)}
         onLoadedMetadata={() => setDur(audioRef.current?.duration || 0)}
         onEnded={() => setPlaying(false)}
@@ -86,132 +73,11 @@ function AudioPlayer({ audioUrl }) {
   )
 }
 
-function IcoBtn({ onClick, children }) {
-  return (
-    <button onClick={onClick} style={{
-      width: 24, height: 24, borderRadius: '50%', border: 'none', flexShrink: 0,
-      background: 'rgba(255,255,255,.18)', color: '#fff', cursor: 'pointer', fontSize: 11,
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-    }}>{children}</button>
-  )
-}
-
-// ─────────────────────────────────────────────────────────
-//  QUESTION NUMBER TRACKER
-// ─────────────────────────────────────────────────────────
-function QuestionTracker({ sections, answers, partIdx, onJump }) {
-  const qNos = extractQNos(sections)
-  if (!qNos.length) return null
-
-  const answeredCount   = qNos.filter(n => answers[n] !== undefined && answers[n] !== '').length
-  const unansweredCount = qNos.length - answeredCount
-  const pct             = Math.round((answeredCount / qNos.length) * 100)
-
-  return (
-    <div style={{
-      background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10,
-      padding: '14px 16px', marginTop: 14,
-      boxShadow: '0 1px 3px rgba(15,23,42,.06)',
-    }}>
-      {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10, flexWrap: 'wrap', gap: 6 }}>
-        <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.06em', color: '#94a3b8' }}>
-          Part {partIdx + 1} — Question Tracker
-        </span>
-        <div style={{ display: 'flex', gap: 14 }}>
-          <Legend color="#2563eb" label={`Answered (${answeredCount})`} />
-          <Legend color="#f1f5f9" border="#cbd5e1" label={`Unanswered (${unansweredCount})`} textColor="#94a3b8" />
-        </div>
-      </div>
-
-      {/* Number grid */}
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-        {qNos.map(n => {
-          const done = answers[n] !== undefined && answers[n] !== ''
-          return (
-            <div
-              key={n}
-              onClick={() => onJump(n)}
-              title={`Question ${n} — ${done ? 'answered' : 'not answered yet'}`}
-              style={{
-                width: 34, height: 34, borderRadius: 6,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: 12, fontWeight: 600, cursor: 'pointer',
-                transition: 'all .15s',
-                background: done ? '#2563eb' : '#f8fafc',
-                color:      done ? '#fff'    : '#94a3b8',
-                border:     done ? '1.5px solid #1d4ed8' : '1.5px solid #e2e8f0',
-                boxShadow:  done ? '0 2px 6px rgba(37,99,235,.22)' : 'none',
-              }}
-            >
-              {n}
-            </div>
-          )
-        })}
-      </div>
-
-      {/* Progress bar */}
-      <div style={{ marginTop: 10 }}>
-        <div style={{ height: 4, background: '#f1f5f9', borderRadius: 2 }}>
-          <div style={{
-            width: `${pct}%`, height: '100%',
-            background: 'linear-gradient(90deg,#2563eb,#7c3aed)',
-            borderRadius: 2, transition: 'width .4s',
-          }} />
-        </div>
-        <div style={{ textAlign: 'right', fontSize: 10.5, color: '#94a3b8', marginTop: 3 }}>
-          {pct}% of Part {partIdx + 1} complete
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function Legend({ color, border, label, textColor }) {
-  return (
-    <span style={{ fontSize: 11, display: 'flex', alignItems: 'center', gap: 4 }}>
-      <span style={{
-        width: 10, height: 10, borderRadius: 2, flexShrink: 0,
-        background: color, border: border ? `1px solid ${border}` : 'none',
-        display: 'inline-block',
-      }} />
-      <span style={{ color: textColor || '#475569' }}>{label}</span>
-    </span>
-  )
-}
-
-// Extract all answerable question numbers from sections
-function extractQNos(sections) {
-  const qNos = []
-  sections.forEach(sec => {
-    if (sec.type === 'form')
-      (sec.fields || []).forEach(f => qNos.push(f.qNo))
-    else if (sec.type === 'table')
-      (sec.rows || []).forEach(row => (row.cells || []).forEach(c => { if (c.qNo) qNos.push(c.qNo) }))
-    else if (sec.type === 'mcq' || sec.type === 'fill')
-      (sec.questions || []).forEach(q => qNos.push(q.qNo))
-    else if (sec.type === 'notes')
-      (sec.lines || []).forEach(l => (l.fields || []).forEach(f => qNos.push(f.qNo)))
-    else if (sec.type === 'map')
-      (sec.questions || []).forEach(q => qNos.push(q.qNo))
-    else if (sec.type === 'matching')
-      (sec.items || []).forEach(i => qNos.push(i.qNo))
-  })
-  return qNos
-}
-
-// Extract qNos from a full part (all sections)
-function extractPartQNos(part) {
-  return extractQNos(part.sections || [])
-}
-
-// ─────────────────────────────────────────────────────────
-//  MAIN TEST PAGE
-// ─────────────────────────────────────────────────────────
+// ── Main Test Page ────────────────────────────────────────
 export default function TestPage({ showToast }) {
-  const { testId } = useParams()
-  const navigate   = useNavigate()
-  const { user }   = useAuth()
+  const { testId }  = useParams()
+  const navigate    = useNavigate()
+  const { user }    = useAuth()
 
   const [test,     setTest]     = useState(null)
   const [loading,  setLoading]  = useState(true)
@@ -224,14 +90,6 @@ export default function TestPage({ showToast }) {
   const timerRef  = useRef(null)
   const startTime = useRef(Date.now())
 
-  // ── Hide footer while test is open ─────────────────────
-  useEffect(() => {
-    const footer = document.querySelector('footer')
-    if (footer) footer.style.display = 'none'
-    return () => { if (footer) footer.style.display = '' }
-  }, [])
-
-  // ── Fetch test from Firestore ───────────────────────────
   useEffect(() => {
     setLoading(true)
     fetchTestWithQuestions(testId)
@@ -239,7 +97,6 @@ export default function TestPage({ showToast }) {
       .catch(err  => { setError(err.message); setLoading(false) })
   }, [testId])
 
-  // ── Countdown timer ─────────────────────────────────────
   useEffect(() => {
     timerRef.current = setInterval(() => {
       setTimeLeft(t => {
@@ -254,32 +111,22 @@ export default function TestPage({ showToast }) {
     setAnswers(prev => ({ ...prev, [qNo]: value }))
   }
 
-  // ── Jump to a question by ID ────────────────────────────
-  function jumpToQuestion(qNo) {
-    const el = document.getElementById(`q-${qNo}`)
-    if (el) {
-      el.scrollIntoView({ behavior: 'smooth', block: 'center' })
-      el.style.outline = '2.5px solid #2563eb'
-      el.style.outlineOffset = '4px'
-      setTimeout(() => { el.style.outline = ''; el.style.outlineOffset = '' }, 1800)
-    }
-  }
-
-  // ── Score ───────────────────────────────────────────────
   function calculateScore() {
     if (!test) return { correct: 0, total: 0, partScores: {} }
     let totalCorrect = 0, totalQs = 0
     const partScores = {}
     test.parts.forEach(part => {
       let partCorrect = 0, partTotal = 0
-      const fields = getAllFields(part.sections || [])
-      fields.forEach(({ qNo, answer }) => {
-        partTotal++
-        if (String(answers[qNo] || '').trim().toLowerCase() === String(answer || '').trim().toLowerCase()) {
-          partCorrect++; totalCorrect++
-        }
+      part.sections.forEach(section => {
+        const fields = getAllFields(section)
+        fields.forEach(({ qNo, answer }) => {
+          partTotal++
+          const ua = String(answers[qNo] || '').trim().toLowerCase()
+          const ca = String(answer   || '').trim().toLowerCase()
+          if (ua === ca) { partCorrect++; totalCorrect++ }
+        })
+        totalQs += fields.length
       })
-      totalQs += partTotal
       partScores[part.partNo] = {
         correct: partCorrect, total: partTotal,
         band: calcBand(Math.round((partCorrect / Math.max(partTotal, 1)) * 40))
@@ -288,34 +135,39 @@ export default function TestPage({ showToast }) {
     return { correct: totalCorrect, total: totalQs, partScores }
   }
 
-  function getAllFields(sections) {
+  function getAllFields(section) {
     const fields = []
-    sections.forEach(sec => {
-      if (sec.type === 'form')
-        (sec.fields || []).forEach(f => fields.push({ qNo: f.qNo, answer: f.answer }))
-      else if (sec.type === 'table')
-        (sec.rows || []).forEach(row => (row.cells || []).forEach(c => { if (c.qNo) fields.push({ qNo: c.qNo, answer: c.answer }) }))
-      else if (sec.type === 'mcq' || sec.type === 'fill')
-        (sec.questions || []).forEach(q => fields.push({ qNo: q.qNo, answer: q.answer }))
-      else if (sec.type === 'notes')
-        (sec.lines || []).forEach(l => (l.fields || []).forEach(f => fields.push({ qNo: f.qNo, answer: f.answer })))
-      else if (sec.type === 'map')
-        (sec.questions || []).forEach(q => fields.push({ qNo: q.qNo, answer: q.answer }))
-      else if (sec.type === 'matching')
-        (sec.items || []).forEach(i => fields.push({ qNo: i.qNo, answer: i.answer }))
-    })
+    if (section.type === 'form')
+      (section.fields || []).forEach(f => fields.push({ qNo: f.qNo, answer: f.answer }))
+    else if (section.type === 'table')
+      (section.rows || []).forEach(row =>
+        (row.cells || []).forEach(cell => { if (cell.qNo) fields.push({ qNo: cell.qNo, answer: cell.answer }) })
+      )
+    else if (section.type === 'mcq' || section.type === 'fill')
+      (section.questions || []).forEach(q => fields.push({ qNo: q.qNo, answer: q.answer }))
+    else if (section.type === 'notes')
+      (section.lines || []).forEach(line =>
+        (line.fields || []).forEach(f => fields.push({ qNo: f.qNo, answer: f.answer }))
+      )
+    else if (section.type === 'map')
+      (section.questions || []).forEach(q => fields.push({ qNo: q.qNo, answer: q.answer }))
+    else if (section.type === 'matching')
+      (section.items || []).forEach(item => fields.push({ qNo: item.qNo, answer: item.answer }))
     return fields
   }
 
-  // ── Finish ──────────────────────────────────────────────
+  // ── FIX: correct saveResult signature ────────────────────
+  // New signature: saveResult(userId, displayName, email, testDocId, testId, correct, total, band, partScores, elapsed)
   async function handleFinish(autoSubmit = false) {
     if (!autoSubmit) {
       const { total } = calculateScore()
-      const done = Object.keys(answers).length
-      if (done < total) {
-        if (!window.confirm(`You have answered ${done} of ${total} questions. Submit anyway?`)) return
+      const answered  = Object.keys(answers).length
+      if (answered < total) {
+        const ok = window.confirm(`You have answered ${answered} of ${total} questions. Submit anyway?`)
+        if (!ok) return
       }
     }
+
     clearInterval(timerRef.current)
     const { correct, total, partScores } = calculateScore()
     const band    = calcBand(correct)
@@ -324,30 +176,50 @@ export default function TestPage({ showToast }) {
     if (user) {
       setSaving(true)
       try {
-        await saveResult(user.uid, user.displayName || user.email, testId, test.id, correct, total, band, partScores, elapsed)
+        // ── FIXED call — passes displayName AND email separately,
+        //    plus elapsed so time tiebreaker works ──────────────
+        await saveResult(
+          user.uid,
+          user.displayName,   // may be null — services.js handles fallback
+          user.email,         // always available
+          testId,             // testDocId (string from URL params)
+          test.id,            // numeric test id from Firestore doc
+          correct,
+          total,
+          band,
+          partScores,
+          elapsed             // seconds taken — used for tiebreaker
+        )
         if (band) {
           showToast('Result saved! Leaderboard updated ✓', 'success')
         } else {
           showToast(`Score saved: ${correct}/40 — answer at least 11 correctly for a band score`, 'info')
         }
-      } catch (e) {
-        showToast('Could not save result — check connection', 'error')
+      } catch (err) {
+        console.error('saveResult error:', err)
+        showToast('Could not save result — check your connection', 'error')
       }
       setSaving(false)
     }
+
     navigate('/result', {
       state: { testId, testDocId: testId, testTitle: test?.title, correct, total, band, elapsed, partScores, answers, test }
     })
+  }
+
+  function exitTest() {
+    if (window.confirm('Exit test? Your progress will be lost.')) {
+      clearInterval(timerRef.current); navigate('/')
+    }
   }
 
   function fmt(t) {
     return `${Math.floor(t / 60)}:${(t % 60).toString().padStart(2, '0')}`
   }
 
-  // ── States ──────────────────────────────────────────────
   if (loading) return (
-    <div style={{ maxWidth: 800, margin: '0 auto', padding: '40px 20px' }}>
-      {[...Array(3)].map((_, i) => (
+    <div style={{ maxWidth: 1160, margin: '0 auto', padding: '40px 20px' }}>
+      {[...Array(4)].map((_, i) => (
         <div key={i} style={{ height: 100, background: '#fff', borderRadius: 12, border: '1px solid #e2e8f0', marginBottom: 12 }} />
       ))}
     </div>
@@ -357,252 +229,110 @@ export default function TestPage({ showToast }) {
     <div style={{ maxWidth: 800, margin: '0 auto', padding: '60px 20px', textAlign: 'center' }}>
       <p style={{ color: '#dc2626', fontWeight: 600, marginBottom: 8 }}>Failed to load test</p>
       <p style={{ color: '#94a3b8', fontSize: 13 }}>{error}</p>
-      <button onClick={() => navigate('/')} style={{ marginTop: 24, padding: '10px 24px', borderRadius: 8, background: '#2563eb', color: '#fff', border: 'none', cursor: 'pointer', fontWeight: 600 }}>
-        ← Back to Tests
-      </button>
+      <button onClick={() => navigate('/')} style={{ marginTop: 24, padding: '10px 24px', borderRadius: 8, background: '#2563eb', color: '#fff', border: 'none', cursor: 'pointer', fontWeight: 600 }}>← Back to Tests</button>
     </div>
   )
 
   const currentPart = test.parts?.[partIdx]
-  const totalParts  = test.parts?.length || 4
-  const isLastPart  = partIdx === totalParts - 1
-  const isFirstPart = partIdx === 0
   const { total: runTotal } = calculateScore()
   const answered = Object.keys(answers).length
-  const audioUrl = test.audioUrl || ''
+  const audioUrl = test.audioUrl || currentPart?.audioUrl || ''
 
   return (
-    <div style={{ background: '#f4f6fb', minHeight: '100vh', paddingBottom: 60 }}>
+    <div style={{ background: '#f4f6fb', minHeight: '100vh' }}>
 
       {/* ════ STICKY HEADER ════════════════════════════════ */}
-      <div style={{
-        position: 'sticky', top: 0, zIndex: 100,
-        background: '#fff', borderBottom: '1px solid #e2e8f0',
-        boxShadow: '0 2px 8px rgba(15,23,42,.08)',
-      }}>
+      <div style={{ position: 'sticky', top: 0, zIndex: 100, background: '#fff', borderBottom: '1px solid #e2e8f0', boxShadow: '0 2px 8px rgba(15,23,42,.08)' }}>
 
-        {/* Row 1 — Title + Timer + Exit */}
-        <div style={{
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          padding: '10px 20px', flexWrap: 'wrap', gap: 8,
-        }}>
+        {/* Row 1: title + timer + exit */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 20px', flexWrap: 'wrap', gap: 10 }}>
           <div>
-            <div style={{ fontFamily: 'Lora, serif', fontWeight: 600, fontSize: '1rem', color: '#0f172a' }}>
-              {test.title}
-            </div>
-            <div style={{ fontSize: 11.5, color: '#94a3b8', marginTop: 1 }}>
-              {test.category === 'academic' ? 'Academic' : 'General Training'}
-              &nbsp;·&nbsp; 4 Parts &nbsp;·&nbsp; {runTotal} Questions
-              {answered > 0 && (
-                <span style={{ color: '#059669', fontWeight: 600, marginLeft: 8 }}>
-                  · {answered} answered
-                </span>
-              )}
+            <div style={{ fontFamily: 'Lora,serif', fontWeight: 600, fontSize: '1rem', color: '#0f172a' }}>{test.title}</div>
+            <div style={{ fontSize: 11.5, color: '#94a3b8', marginTop: 2 }}>
+              4 Parts · {runTotal} Questions
+              {answered > 0 && <span style={{ color: '#059669', fontWeight: 600, marginLeft: 8 }}>· {answered} answered</span>}
             </div>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            {/* Timer */}
-            <div style={{
-              display: 'flex', alignItems: 'center', gap: 6,
-              background: timeLeft < 120 ? '#fef2f2' : '#f1f5f9',
-              border: `1px solid ${timeLeft < 120 ? '#fca5a5' : '#e2e8f0'}`,
-              padding: '6px 14px', borderRadius: 8,
-            }}>
-              <span style={{ color: '#94a3b8', fontSize: 13 }}>⏱</span>
-              <span style={{
-                fontFamily: 'Lora, serif', fontWeight: 700, fontSize: '1.2rem',
-                color: timeLeft < 120 ? '#dc2626' : '#2563eb',
-                fontVariantNumeric: 'tabular-nums',
-                animation: timeLeft < 120 ? 'blink 1s infinite' : 'none',
-              }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: timeLeft < 120 ? '#fef2f2' : '#f1f5f9', border: `1px solid ${timeLeft < 120 ? '#fca5a5' : '#e2e8f0'}`, padding: '6px 14px', borderRadius: 8 }}>
+              <span style={{ fontSize: 13, color: '#94a3b8' }}>⏱</span>
+              <span style={{ fontFamily: 'Lora,serif', fontWeight: 700, fontSize: '1.2rem', color: timeLeft < 120 ? '#dc2626' : '#2563eb', fontVariantNumeric: 'tabular-nums' }}>
                 {fmt(timeLeft)}
               </span>
             </div>
-            {/* Exit */}
-            <button
-              onClick={() => {
-                if (window.confirm('Exit test? Your progress will be lost.')) {
-                  clearInterval(timerRef.current)
-                  navigate('/')
-                }
-              }}
-              style={{
-                padding: '7px 14px', borderRadius: 7, background: 'transparent',
-                border: '1px solid #cbd5e1', color: '#475569', fontSize: 12.5,
-                fontWeight: 600, cursor: 'pointer', fontFamily: 'Plus Jakarta Sans, sans-serif',
-              }}
-            >
+            <button onClick={exitTest} style={{ padding: '7px 14px', borderRadius: 7, background: 'transparent', border: '1px solid #cbd5e1', color: '#475569', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'Plus Jakarta Sans,sans-serif' }}>
               ← Exit
             </button>
           </div>
         </div>
 
-        {/* Row 2 — Single Audio Player */}
-        {audioUrl
-          ? <AudioPlayer audioUrl={audioUrl} />
-          : (
-            <div style={{ background: '#fef9c3', padding: '7px 20px', fontSize: 12, color: '#92400e', borderTop: '1px solid #fde68a' }}>
-              ⚠ No audio — add <code>audioUrl</code> to this test document in Firestore
-            </div>
-          )
-        }
+        {/* Row 2: Audio */}
+        {audioUrl ? <AudioPlayer audioUrl={audioUrl} /> : (
+          <div style={{ background: '#fef9c3', padding: '8px 20px', fontSize: 12, color: '#92400e', borderTop: '1px solid #fde68a' }}>
+            ⚠ No audio URL set — add <code>audioUrl</code> to this test in Firestore
+          </div>
+        )}
 
-        {/* Row 3 — Part tabs */}
-        <div style={{ display: 'flex', borderTop: '1px solid #e2e8f0', overflowX: 'auto' }}>
-          {(test.parts || []).map((p, i) => {
-            const pQNos     = extractPartQNos(p)
-            const pAnswered = pQNos.filter(n => answers[n] !== undefined && answers[n] !== '').length
-            const allDone   = pQNos.length > 0 && pAnswered === pQNos.length
-            const active    = i === partIdx
-
-            return (
-              <button
-                key={p.partNo}
-                onClick={() => { setPartIdx(i); window.scrollTo({ top: 0, behavior: 'smooth' }) }}
-                style={{
-                  flex: 1, padding: '9px 6px', fontSize: 13, fontWeight: 600,
-                  cursor: 'pointer', border: 'none',
-                  borderBottom: active ? '3px solid #2563eb' : '3px solid transparent',
-                  background: active ? '#eff4ff' : '#fff',
-                  color: active ? '#2563eb' : allDone ? '#059669' : '#64748b',
-                  fontFamily: 'Plus Jakarta Sans, sans-serif',
-                  whiteSpace: 'nowrap', transition: 'all .15s',
-                }}
-              >
-                {p.title || `Part ${p.partNo}`}
-                {allDone && <span style={{ marginLeft: 4 }}>✓</span>}
-                <div style={{ fontSize: 9.5, marginTop: 1, color: active ? '#93c5fd' : allDone ? '#86efac' : '#e2e8f0' }}>
-                  {pAnswered}/{pQNos.length}
-                </div>
-              </button>
-            )
-          })}
+        {/* Row 3: Part tabs */}
+        <div style={{ display: 'flex', gap: 0, borderTop: '1px solid #e2e8f0', overflowX: 'auto' }}>
+          {(test.parts || []).map((p, i) => (
+            <button key={p.partNo} onClick={() => setPartIdx(i)} style={{
+              flex: 1, padding: '10px 8px', fontSize: 13, fontWeight: 600,
+              cursor: 'pointer', transition: 'all .16s', border: 'none',
+              borderBottom: i === partIdx ? '3px solid #2563eb' : '3px solid transparent',
+              background: i === partIdx ? '#eff4ff' : '#fff',
+              color: i === partIdx ? '#2563eb' : '#64748b',
+              fontFamily: 'Plus Jakarta Sans,sans-serif', whiteSpace: 'nowrap',
+            }}>
+              {p.title || `Part ${p.partNo}`}
+            </button>
+          ))}
         </div>
       </div>
 
-      {/* ════ SCROLLABLE QUESTIONS + LEADERBOARD SIDEBAR ══ */}
-      <div style={{
-        maxWidth: 1160, margin: '0 auto', padding: '18px 20px 0',
-        display: 'grid', gridTemplateColumns: '1fr 290px', gap: 20, alignItems: 'start',
-      }}>
+      {/* ════ CONTENT: questions left, leaderboard right ═══ */}
+      <div style={{ maxWidth: 1160, margin: '0 auto', padding: '20px 20px 40px', display: 'grid', gridTemplateColumns: '1fr 290px', gap: 20, alignItems: 'start' }}>
 
-        {/* ── LEFT COLUMN — questions ── */}
+        {/* Left — questions */}
         <div>
-
-          {/* Part label bar */}
           {currentPart && (
-            <div style={{
-              background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10,
-              padding: '10px 16px', marginBottom: 14,
-              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-              boxShadow: '0 1px 3px rgba(15,23,42,.06)',
-            }}>
-              <div>
-                <span style={{ fontWeight: 700, color: '#0f172a', fontSize: 13.5 }}>
-                  {currentPart.title || `Part ${currentPart.partNo}`}
-                </span>
-                <span style={{ color: '#94a3b8', fontSize: 12.5, marginLeft: 8 }}>
-                  Questions {partIdx * 10 + 1}–{(partIdx + 1) * 10}
-                </span>
-              </div>
-              <span style={{
-                fontSize: 11, fontWeight: 600, color: '#64748b',
-                background: '#f1f5f9', padding: '3px 10px', borderRadius: 20,
-              }}>
-                Part {partIdx + 1} of {totalParts}
-              </span>
+            <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10, padding: '10px 16px', marginBottom: 14, fontSize: 13, color: '#475569', boxShadow: '0 1px 3px rgba(15,23,42,.06)' }}>
+              <strong style={{ color: '#0f172a' }}>{currentPart.title || `Part ${currentPart.partNo}`}</strong>
+              &nbsp;— Questions {(partIdx * 10) + 1}–{(partIdx + 1) * 10}
             </div>
           )}
 
-          {/* Questions */}
-          {(currentPart?.sections || []).map(section => (
-            <div key={section.id}>
-              <QuestionRenderer
-                section={section}
-                answers={answers}
-                onChange={setAnswer}
-                reviewMode={false}
-              />
-            </div>
-          ))}
+          <div>
+            {(currentPart?.sections || []).map(section => (
+              <QuestionRenderer key={section.id} section={section} answers={answers} onChange={setAnswer} reviewMode={false} />
+            ))}
+          </div>
 
-          {/* Question Number Tracker */}
-          <QuestionTracker
-            sections={currentPart?.sections || []}
-            answers={answers}
-            partIdx={partIdx}
-            onJump={jumpToQuestion}
-          />
-
-          {/* Navigation Buttons */}
-          <div style={{
-            background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10,
-            padding: '14px 18px', marginTop: 12,
-            display: 'flex', justifyContent: 'space-between',
-            alignItems: 'center', flexWrap: 'wrap', gap: 10,
-            boxShadow: '0 1px 3px rgba(15,23,42,.06)',
-          }}>
-            <p style={{ fontSize: 13, color: '#475569', margin: 0 }}>
-              Total answered:&nbsp;
-              <strong style={{ color: '#2563eb' }}>{answered}</strong>
-              <span style={{ color: '#94a3b8' }}> / {runTotal}</span>
+          {/* Bottom action bar */}
+          <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10, padding: '12px 18px', marginTop: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10, boxShadow: '0 1px 3px rgba(15,23,42,.06)' }}>
+            <p style={{ fontSize: 13, color: '#475569' }}>
+              Answered: <strong style={{ color: '#2563eb' }}>{answered}</strong> / {runTotal}
             </p>
-
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-              {!isFirstPart && (
-                <button
-                  onClick={() => { setPartIdx(i => i - 1); window.scrollTo({ top: 0, behavior: 'smooth' }) }}
-                  style={{
-                    padding: '10px 20px', borderRadius: 8,
-                    background: 'transparent', border: '1.5px solid #cbd5e1',
-                    color: '#475569', fontSize: 13.5, fontWeight: 600,
-                    cursor: 'pointer', fontFamily: 'Plus Jakarta Sans, sans-serif',
-                  }}
-                >
-                  ← Previous Part
+            <div style={{ display: 'flex', gap: 8 }}>
+              {partIdx > 0 && (
+                <button onClick={() => setPartIdx(i => i - 1)} style={{ padding: '9px 20px', borderRadius: 8, background: 'transparent', border: '1px solid #cbd5e1', color: '#475569', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'Plus Jakarta Sans,sans-serif' }}>
+                  ← Previous
                 </button>
               )}
-
-              {!isLastPart && (
-                <button
-                  onClick={() => { setPartIdx(i => i + 1); window.scrollTo({ top: 0, behavior: 'smooth' }) }}
-                  style={{
-                    padding: '10px 20px', borderRadius: 8,
-                    background: '#f0f9ff', border: '1.5px solid #93c5fd',
-                    color: '#1d4ed8', fontSize: 13.5, fontWeight: 600,
-                    cursor: 'pointer', fontFamily: 'Plus Jakarta Sans, sans-serif',
-                  }}
-                >
+              {partIdx < (test.parts?.length || 0) - 1 && (
+                <button onClick={() => { setPartIdx(i => i + 1); window.scrollTo({ top: 0, behavior: 'smooth' }) }} style={{ padding: '9px 20px', borderRadius: 8, background: 'transparent', border: '1px solid #cbd5e1', color: '#475569', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'Plus Jakarta Sans,sans-serif' }}>
                   Next Part →
                 </button>
               )}
-
-              {isLastPart && (
-                <button
-                  onClick={() => handleFinish(false)}
-                  disabled={saving}
-                  style={{
-                    padding: '10px 26px', borderRadius: 8, border: 'none',
-                    background: saving
-                      ? '#94a3b8'
-                      : 'linear-gradient(135deg,#2563eb,#7c3aed)',
-                    color: '#fff', fontSize: 14, fontWeight: 700,
-                    cursor: saving ? 'not-allowed' : 'pointer',
-                    fontFamily: 'Plus Jakarta Sans, sans-serif',
-                    boxShadow: saving ? 'none' : '0 4px 14px rgba(37,99,235,.3)',
-                    transition: 'all .2s', opacity: saving ? .7 : 1,
-                  }}
-                >
-                  {saving ? 'Saving…' : 'Finish & See Results →'}
-                </button>
-              )}
+              <button onClick={() => handleFinish(false)} disabled={saving} style={{ padding: '9px 26px', borderRadius: 8, border: 'none', background: saving ? '#94a3b8' : 'linear-gradient(135deg,#2563eb,#7c3aed)', color: '#fff', fontSize: 14, fontWeight: 700, cursor: saving ? 'not-allowed' : 'pointer', fontFamily: 'Plus Jakarta Sans,sans-serif', boxShadow: '0 4px 14px rgba(37,99,235,.28)', transition: 'all .2s' }}>
+                {saving ? 'Saving…' : 'Finish & See Results →'}
+              </button>
             </div>
           </div>
+        </div>
 
-        </div>{/* end left column */}
-
-        {/* ── RIGHT COLUMN — leaderboard ── */}
-        <div style={{ position: 'sticky', top: 80 }}>
+        {/* Right — per-test leaderboard */}
+        <div style={{ position: 'sticky', top: 150 }}>
           {test && (
             <TestLeaderboard
               testId={test.id}
@@ -611,10 +341,10 @@ export default function TestPage({ showToast }) {
           )}
         </div>
 
-      </div>{/* end grid */}
+      </div>
 
       <style>{`
-        @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.4} }
+        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.5} }
       `}</style>
     </div>
   )
