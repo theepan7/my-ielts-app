@@ -1,8 +1,7 @@
 // src/components/Leaderboard.jsx
-// Three variants:
-//  1. <TestLeaderboard testId={1} />          — TestPage sidebar, top 5, refreshes every 60s
-//  2. <ResultLeaderboard testId={1} />        — ResultPage right column, full top 10 + user rank
-//  3. <HomeLeaderboard />                     — HomePage sidebar, top 5, ranked by avg band
+// Two variants:
+//  1. <ResultLeaderboard testId={1} />        — ResultPage right column, full top 10 + user rank
+//  2. <HomeLeaderboard />                     — HomePage sidebar, top 5, ranked by avg band
 
 import React, { useEffect, useState } from 'react'
 import { useAuth } from '../context/AuthContext'
@@ -48,7 +47,7 @@ function SkeletonRows({ count = 5 }) {
   )
 }
 
-// ── Shared row for test leaderboards ─────────────────────
+// ── Shared row for result page leaderboard ──────────────
 function TestLbRow({ entry, index, isMe }) {
   const { icon, color } = rankIcon(entry.rank)
   return (
@@ -92,8 +91,9 @@ function TestLbRow({ entry, index, isMe }) {
     </div>
   )
 }
+
 // ─────────────────────────────────────────────────────────
-//  2. RESULT PAGE LEADERBOARD — full top 10 + user rank
+//  1. RESULT PAGE LEADERBOARD — full top 10 + user rank
 //  FIX: waits 2 seconds before first fetch so Firestore
 //  write from saveResult has time to propagate
 // ─────────────────────────────────────────────────────────
@@ -236,7 +236,7 @@ export function ResultLeaderboard({ testId, testTitle }) {
 }
 
 // ─────────────────────────────────────────────────────────
-//  3. HOME PAGE LEADERBOARD — top 5 by avg band
+//  2. HOME PAGE LEADERBOARD — top 5 by avg band
 // ─────────────────────────────────────────────────────────
 export function HomeLeaderboard() {
   const { user }               = useAuth()
