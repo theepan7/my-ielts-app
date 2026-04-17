@@ -92,63 +92,6 @@ function TestLbRow({ entry, index, isMe }) {
     </div>
   )
 }
-
-// ─────────────────────────────────────────────────────────
-//  1. TEST PAGE LEADERBOARD — top 5, refreshes every 60s
-// ─────────────────────────────────────────────────────────
-export function TestLeaderboard({ testId, testTitle }) {
-  const { user }               = useAuth()
-  const [entries, setEntries]  = useState([])
-  const [loading, setLoading]  = useState(true)
-
-  const testNum = String(testId || '').padStart(2, '0')
-
-  async function load() {
-    if (!testId) return
-    setLoading(true)
-    try {
-      const lb = await fetchTestLeaderboard(testId, 5)
-      setEntries(lb)
-    } catch (_) {} finally { setLoading(false) }
-  }
-
-  useEffect(() => {
-    load()
-    const interval = setInterval(load, 60000)
-    return () => clearInterval(interval)
-  }, [testId])
-
-  return (
-    <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 12, padding: 14, boxShadow: '0 1px 3px rgba(15,23,42,.07)' }}>
-      <div style={{ marginBottom: 10 }}>
-        <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.07em', color: '#94a3b8', marginBottom: 2 }}>
-          🏆 Top Students
-        </div>
-        <div style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>Test {testNum}</div>
-        <div style={{ fontSize: 10.5, color: '#64748b' }}>Ties broken by fastest time</div>
-      </div>
-
-      {loading ? <SkeletonRows count={3} /> : (
-        entries.length === 0 ? (
-          <p style={{ fontSize: 11.5, color: '#94a3b8', textAlign: 'center', padding: '12px 0' }}>
-            No scores yet — be the first! 🎯
-          </p>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            {entries.map((e, i) => (
-              <TestLbRow key={e.userId || i} entry={e} index={i} isMe={!!user && e.userId === user?.uid} />
-            ))}
-          </div>
-        )
-      )}
-
-      <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px solid #f1f5f9', fontSize: 9.5, color: '#94a3b8', textAlign: 'center' }}>
-        Updates live · Top 5 shown
-      </div>
-    </div>
-  )
-}
-
 // ─────────────────────────────────────────────────────────
 //  2. RESULT PAGE LEADERBOARD — full top 10 + user rank
 //  FIX: waits 2 seconds before first fetch so Firestore
