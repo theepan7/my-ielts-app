@@ -1,9 +1,20 @@
 // src/context/AuthContext.jsx
+// OAuth uses signInWithRedirect instead of signInWithPopup
+// to avoid Cross-Origin-Opener-Policy (COOP) errors.
+//
+// Flow:
+//   1. User clicks "Sign in with Google/Facebook"
+//   2. Browser redirects to Google/Facebook
+//   3. After auth, browser redirects back to the app
+//   4. getRedirectResult() picks up the result on mount
+//   5. User is signed in
+
 import React, { createContext, useContext, useEffect, useState } from 'react'
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
-  signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
   GoogleAuthProvider,
   FacebookAuthProvider,
   signOut,
@@ -20,7 +31,6 @@ const AuthContext = createContext(null)
 const googleProvider   = new GoogleAuthProvider()
 const facebookProvider = new FacebookAuthProvider()
 
-// Add scopes
 googleProvider.addScope('email')
 googleProvider.addScope('profile')
 facebookProvider.addScope('email')
@@ -37,16 +47,20 @@ const BLOCKED_DOMAINS = [
 ]
 
 export function AuthProvider({ children }) {
-  const [user,    setUser]    = useState(null)
-  const [loading, setLoading] = useState(true)
+  const [user,         setUser]         = useState(null)
+  const [loading,      setLoading]      = useState(true)
+  const [redirecting,  setRedirecting]  = useState(false)
+  // Stores pending country for OAuth redirect flow
+  // Written before redirect, read after return
+  const COUNTRY_KEY = 'ielts_pending_country'
 
+  // ── Auth state listener ────────────────────────────────
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async firebaseUser => {
       if (firebaseUser) {
         try { await reload(firebaseUser) } catch (_) {}
-        // OAuth users (Google/Facebook) are always verified
-        // Email/password users must verify email
-        const isVerified = firebaseUser.emailVerified ||
+        const isVerified =
+          firebaseUser.emailVerified ||
           firebaseUser.providerData?.some(p =>
             p.providerId === 'google.com' || p.providerId === 'facebook.com'
           )
@@ -59,7 +73,44 @@ export function AuthProvider({ children }) {
     return unsub
   }, [])
 
-  // ── Create or update leaderboard entry ──────────────────
+  // ── Handle redirect result on page load ───────────────
+  // This runs once after the browser returns from Google/Facebook
+  useEffect(() => {
+    getRedirectResult(auth)
+      .then(async result => {
+        if (!result?.user) return
+
+        const u = result.user
+
+        // Read the country that was saved before the redirect
+        let countryCode = '', countryName = '', countryFlag = '🌍'
+        try {
+          const saved = JSON.parse(sessionStorage.getItem(COUNTRY_KEY) || 'null')
+          if (saved) {
+            countryCode = saved.code  || ''
+            countryName = saved.name  || ''
+            countryFlag = saved.flag  || '🌍'
+            sessionStorage.removeItem(COUNTRY_KEY)
+          }
+        } catch (_) {}
+
+        // Create leaderboard entry if first time
+        await ensureLeaderboardEntry(
+          u.uid,
+          u.displayName || u.email?.split('@')[0] || 'Student',
+          u.email,
+          countryCode, countryName, countryFlag
+        )
+      })
+      .catch(err => {
+        // Ignore redirect errors on pages where no redirect was initiated
+        if (err.code !== 'auth/no-auth-event') {
+          console.warn('getRedirectResult error:', err.code)
+        }
+      })
+  }, [])
+
+  // ── Create leaderboard entry (first-time OAuth) ────────
   async function ensureLeaderboardEntry(uid, name, email, countryCode, countryName, countryFlag) {
     const ref  = doc(db, 'leaderboard', uid)
     const snap = await getDoc(ref)
@@ -78,6 +129,7 @@ export function AuthProvider({ children }) {
         avgBand:         '—',
         bestBand:        '—',
         bestScore:       0,
+        seed:            false,
         emailVerified:   true,
         createdAt:       serverTimestamp(),
         lastPlayed:      null,
@@ -85,7 +137,7 @@ export function AuthProvider({ children }) {
     }
   }
 
-  // ── EMAIL / PASSWORD SIGNUP ──────────────────────────────
+  // ── Email / password signup ────────────────────────────
   async function signup(name, email, password, countryCode, countryName, countryFlag) {
     const domain = email.trim().toLowerCase().split('@')[1] || ''
     if (BLOCKED_DOMAINS.includes(domain)) {
@@ -97,14 +149,8 @@ export function AuthProvider({ children }) {
     const cred = await createUserWithEmailAndPassword(auth, email.trim(), password)
     await updateProfile(cred.user, { displayName: name.trim() })
 
-    // Send verification email (no url option — avoids UNAUTHORIZED_DOMAIN)
-    try {
-      await sendEmailVerification(cred.user)
-    } catch (err) {
-      console.warn('Verification email failed:', err.code)
-    }
+    try { await sendEmailVerification(cred.user) } catch (_) {}
 
-    // Create leaderboard entry
     try {
       await setDoc(doc(db, 'leaderboard', cred.user.uid), {
         userId:          cred.user.uid,
@@ -120,20 +166,18 @@ export function AuthProvider({ children }) {
         avgBand:         '—',
         bestBand:        '—',
         bestScore:       0,
+        seed:            false,
         emailVerified:   false,
         createdAt:       serverTimestamp(),
         lastPlayed:      null,
       })
-    } catch (err) {
-      console.warn('Leaderboard error:', err.message)
-    }
+    } catch (err) { console.warn('Leaderboard entry error:', err.message) }
 
-    // Sign out — must verify email before accessing app
     await signOut(auth)
     return { status: 'pending_verification', email: email.trim() }
   }
 
-  // ── EMAIL / PASSWORD LOGIN ───────────────────────────────
+  // ── Email / password login ─────────────────────────────
   async function login(email, password) {
     const cred = await signInWithEmailAndPassword(auth, email.trim(), password)
     await reload(cred.user)
@@ -147,70 +191,55 @@ export function AuthProvider({ children }) {
       throw e
     }
 
-    try {
-      await updateDoc(doc(db, 'leaderboard', cred.user.uid), { emailVerified: true })
-    } catch (_) {}
-
+    try { await updateDoc(doc(db, 'leaderboard', cred.user.uid), { emailVerified: true }) } catch (_) {}
     return cred.user
   }
 
-  // ── GOOGLE SIGN IN ───────────────────────────────────────
-  // Opens a popup — user picks their Google account
-  // No email verification needed — Google accounts are already verified
+  // ── Google sign in (redirect — no popup) ──────────────
+  // Saves country to sessionStorage before redirect so it
+  // can be retrieved when getRedirectResult fires on return.
   async function signInWithGoogle(countryCode, countryName, countryFlag) {
-    const cred = await signInWithPopup(auth, googleProvider)
-    const u    = cred.user
-
-    // Create leaderboard entry if first time
-    await ensureLeaderboardEntry(
-      u.uid,
-      u.displayName || u.email?.split('@')[0] || 'Student',
-      u.email,
-      countryCode, countryName, countryFlag
-    )
-
-    return u
+    if (countryCode) {
+      sessionStorage.setItem(COUNTRY_KEY, JSON.stringify({
+        code: countryCode, name: countryName, flag: countryFlag
+      }))
+    }
+    setRedirecting(true)
+    await signInWithRedirect(auth, googleProvider)
+    // Browser will navigate away — nothing after this runs
   }
 
-  // ── FACEBOOK SIGN IN ─────────────────────────────────────
-  // Opens a popup — user picks their Facebook account
+  // ── Facebook sign in (redirect — no popup) ────────────
   async function signInWithFacebook(countryCode, countryName, countryFlag) {
-    const cred = await signInWithPopup(auth, facebookProvider)
-    const u    = cred.user
-
-    await ensureLeaderboardEntry(
-      u.uid,
-      u.displayName || 'Student',
-      u.email,
-      countryCode, countryName, countryFlag
-    )
-
-    return u
+    if (countryCode) {
+      sessionStorage.setItem(COUNTRY_KEY, JSON.stringify({
+        code: countryCode, name: countryName, flag: countryFlag
+      }))
+    }
+    setRedirecting(true)
+    await signInWithRedirect(auth, facebookProvider)
+    // Browser will navigate away — nothing after this runs
   }
 
-  // ── RESEND VERIFICATION ──────────────────────────────────
+  // ── Resend verification ────────────────────────────────
   async function resendVerification(email, password) {
     try {
       const cred = await signInWithEmailAndPassword(auth, email, password)
       await reload(cred.user)
-      if (!cred.user.emailVerified) {
-        await sendEmailVerification(cred.user)
-      }
+      if (!cred.user.emailVerified) await sendEmailVerification(cred.user)
       await signOut(auth)
       return true
-    } catch (_) {
-      return false
-    }
+    } catch (_) { return false }
   }
 
-  // ── SIGN OUT ─────────────────────────────────────────────
+  // ── Sign out ───────────────────────────────────────────
   async function logout() {
     await signOut(auth)
   }
 
   return (
     <AuthContext.Provider value={{
-      user, loading,
+      user, loading, redirecting,
       signup, login,
       signInWithGoogle, signInWithFacebook,
       logout, resendVerification,
