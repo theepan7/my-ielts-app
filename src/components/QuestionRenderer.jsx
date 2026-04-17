@@ -207,117 +207,121 @@ function TableSection({ section, answers, onChange, reviewMode }) {
 function McqSection({ section, answers, onChange, reviewMode }) {
   return (
     <SectionCard section={section}>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-        {(section.questions || []).map(q => {
-
-          const isMulti = Array.isArray(q.answers)
-          const selected = answers[q.qNo] || (isMulti ? [] : '')
-
-          const correctAnswers = isMulti ? q.answers : [q.answer]
+      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+        {(section.questions || []).map((q) => {
+          // Check if this is a multi-select question (e.g., "Choose THREE")
+          const isMulti = q.maxSelect > 1 || Array.isArray(q.answers);
+          const selected = answers[q.qNo] || (isMulti ? [] : "");
+          const correctAnswers = Array.isArray(q.answers) ? q.answers : [q.answer];
 
           function toggle(letter) {
-            if (reviewMode) return
+            if (reviewMode) return;
 
             if (!isMulti) {
-              onChange(q.qNo, letter)
-              return
+              onChange(q.qNo, letter);
+              return;
             }
 
-            let updated = [...selected]
+            let updated = [...selected];
 
             if (updated.includes(letter)) {
-              updated = updated.filter(l => l !== letter)
+              updated = updated.filter((l) => l !== letter);
             } else {
-              if (q.maxSelect && updated.length >= q.maxSelect) return
-              updated.push(letter)
+              // Enforce the selection limit (e.g., max 3)
+              if (q.maxSelect && updated.length >= q.maxSelect) return;
+              updated.push(letter);
             }
 
-            onChange(q.qNo, updated)
+            onChange(q.qNo, updated);
           }
 
           return (
-            <div key={q.qNo}>
+            <div key={q.qNo} style={{ marginBottom: 10 }}>
               <p style={{ fontSize: 13.5, fontWeight: 500, marginBottom: 8 }}>
                 <span style={{ fontWeight: 700, marginRight: 6 }}>{q.qNo}.</span>
                 {q.text}
+                {isMulti && (
+                  <span style={{ color: "#64748b", fontSize: 12, marginLeft: 8 }}>
+                    (Select {q.maxSelect})
+                  </span>
+                )}
               </p>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginLeft: 16 }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6, marginLeft: 16 }}>
                 {(q.options || []).map((opt, i) => {
+                  const letter = String.fromCharCode(65 + i);
+                  const isSel = isMulti ? selected.includes(letter) : selected === letter;
+                  const isAns = correctAnswers.includes(letter);
 
-                  const letter = String.fromCharCode(65 + i)
-                  const isSel  = isMulti ? selected.includes(letter) : selected === letter
-                  const isAns  = correctAnswers.includes(letter)
+                  const isCorrectSel = reviewMode && isSel && isAns;
+                  const isWrongSel = reviewMode && isSel && !isAns;
+                  const isMissed = reviewMode && !isSel && isAns;
 
-                  const isCorrectSel = reviewMode && isSel && isAns
-                  const isWrongSel   = reviewMode && isSel && !isAns
-                  const isMissed     = reviewMode && !isSel && isAns
-
-                  const bg =
-                    isCorrectSel ? '#f0fdf4' :
-                    isWrongSel   ? '#fff5f5' :
-                    isMissed     ? '#fefce8' :
-                    isSel        ? '#eff4ff' :
-                    '#f8fafc'
-
-                  const border =
-                    isCorrectSel ? '#4ade80' :
-                    isWrongSel   ? '#f87171' :
-                    isMissed     ? '#facc15' :
-                    isSel        ? '#93c5fd' :
-                    '#e2e8f0'
+                  // Dynamic styles based on state
+                  const border = isCorrectSel ? "#4ade80" : isWrongSel ? "#f87171" : isMissed ? "#facc15" : isSel ? "#93c5fd" : "#e2e8f0";
+                  const bg = isCorrectSel ? "#f0fdf4" : isWrongSel ? "#fff5f5" : isMissed ? "#fefce8" : isSel ? "#eff4ff" : "#f8fafc";
 
                   return (
                     <div
                       key={letter}
                       onClick={() => toggle(letter)}
                       style={{
-                        display: 'flex', alignItems: 'center', gap: 10,
-                        padding: '9px 12px', borderRadius: 8,
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 10,
+                        padding: "9px 12px",
+                        borderRadius: 8,
                         border: `1.5px solid ${border}`,
                         background: bg,
-                        cursor: reviewMode ? 'default' : 'pointer',
+                        cursor: reviewMode ? "default" : "pointer",
                         fontSize: 13,
+                        transition: "all 0.2s",
                       }}
                     >
-                      {/* Checkbox style */}
-                      <div style={{
-                        width: 22, height: 22, borderRadius: 6,
-                        border: `2px solid ${border}`,
-                        background: isSel ? border : 'transparent',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        color: '#fff', fontSize: 12, fontWeight: 700
-                      }}>
-                        {isSel ? '✓' : ''}
+                      {/* Checkbox or Radio Circle */}
+                      <div
+                        style={{
+                          width: 20,
+                          height: 20,
+                          borderRadius: isMulti ? 5 : "50%",
+                          border: `2px solid ${border}`,
+                          background: isSel ? border : "transparent",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          color: "#fff",
+                          fontSize: 11,
+                        }}
+                      >
+                        {isSel ? "✓" : ""}
                       </div>
 
-                      <span style={{ flex: 1 }}>{opt}</span>
+                      <span style={{ flex: 1 }}>
+                        <strong style={{ marginRight: 4 }}>{letter}.</strong> {opt}
+                      </span>
 
-                      {/* Review indicators */}
-                      {reviewMode && isCorrectSel && <span style={{ color: '#059669', fontSize: 11 }}>✓</span>}
-                      {reviewMode && isWrongSel   && <span style={{ color: '#dc2626', fontSize: 11 }}>✗</span>}
-                      {reviewMode && isMissed     && <span style={{ color: '#ca8a04', fontSize: 11 }}>Missed</span>}
+                      {reviewMode && (isCorrectSel || isWrongSel || isMissed) && (
+                        <span style={{ fontWeight: 600, fontSize: 12 }}>
+                          {isCorrectSel ? "Correct" : isWrongSel ? "Incorrect" : "Correct Answer"}
+                        </span>
+                      )}
                     </div>
-                  )
+                  );
                 })}
               </div>
 
-              {/* Summary in review */}
               {reviewMode && (
-                <p style={{ fontSize: 11.5, marginTop: 6, marginLeft: 16 }}>
-                  Correct answer: <strong style={{ color: '#059669' }}>
-                    {correctAnswers.join(', ')}
-                  </strong>
+                <p style={{ fontSize: 12, marginTop: 8, marginLeft: 16, color: "#475569" }}>
+                  Correct answers: <span style={{ color: "#059669", fontWeight: 700 }}>{correctAnswers.join(", ")}</span>
                 </p>
               )}
             </div>
-          )
+          );
         })}
       </div>
     </SectionCard>
-  )
+  );
 }
-
 // ─────────────────────────────────────────────────────────
 //  4. FILL IN THE BLANK SECTION
 // ─────────────────────────────────────────────────────────
