@@ -4,7 +4,6 @@ import { useParams, useNavigate }       from 'react-router-dom'
 import { useAuth }                      from '../context/AuthContext'
 import { fetchTestWithQuestions, saveResult, calcBand } from '../firebase/services'
 import QuestionRenderer from '../components/QuestionRenderer'
-import { TestLeaderboard } from '../components/Leaderboard'
 
 // ── Audio Player ──────────────────────────────────────────
 function AudioPlayer({ audioUrl }) {
@@ -23,7 +22,7 @@ function AudioPlayer({ audioUrl }) {
     if (!audioRef.current || error) return
     if (playing) { audioRef.current.pause() }
     else { audioRef.current.play().catch(() => setError(true)) }
-    setPlaying(p => !p)
+    setPlaying(!playing)
   }
 
   function skip(sec) {
@@ -156,8 +155,6 @@ export default function TestPage({ showToast }) {
     return fields
   }
 
-  // ── FIX: correct saveResult signature ────────────────────
-  // New signature: saveResult(userId, displayName, email, testDocId, testId, correct, total, band, partScores, elapsed)
   async function handleFinish(autoSubmit = false) {
     if (!autoSubmit) {
       const { total } = calculateScore()
@@ -176,8 +173,6 @@ export default function TestPage({ showToast }) {
     if (user) {
       setSaving(true)
       try {
-        // ── FIXED call — passes displayName AND email separately,
-        //    plus elapsed so time tiebreaker works ──────────────
         await saveResult(
           user.uid,
           user.displayName,   // may be null — services.js handles fallback
@@ -233,10 +228,10 @@ export default function TestPage({ showToast }) {
     </div>
   )
 
-  const currentPart = test.parts?.[partIdx]
+  const currentPart = test?.parts?.[partIdx]
   const { total: runTotal } = calculateScore()
   const answered = Object.keys(answers).length
-  const audioUrl = test.audioUrl || currentPart?.audioUrl || ''
+  const audioUrl = test?.audioUrl || currentPart?.audioUrl || ''
 
   return (
     <div style={{ background: '#f4f6fb', minHeight: '100vh' }}>
@@ -247,7 +242,7 @@ export default function TestPage({ showToast }) {
         {/* Row 1: title + timer + exit */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 20px', flexWrap: 'wrap', gap: 10 }}>
           <div>
-            <div style={{ fontFamily: 'Lora,serif', fontWeight: 600, fontSize: '1rem', color: '#0f172a' }}>{test.title}</div>
+            <div style={{ fontFamily: 'Lora,serif', fontWeight: 600, fontSize: '1rem', color: '#0f172a' }}>{test?.title}</div>
             <div style={{ fontSize: 11.5, color: '#94a3b8', marginTop: 2 }}>
               4 Parts · {runTotal} Questions
               {answered > 0 && <span style={{ color: '#059669', fontWeight: 600, marginLeft: 8 }}>· {answered} answered</span>}
@@ -275,7 +270,7 @@ export default function TestPage({ showToast }) {
 
         {/* Row 3: Part tabs */}
         <div style={{ display: 'flex', gap: 0, borderTop: '1px solid #e2e8f0', overflowX: 'auto' }}>
-          {(test.parts || []).map((p, i) => (
+          {(test?.parts || []).map((p, i) => (
             <button key={p.partNo} onClick={() => setPartIdx(i)} style={{
               flex: 1, padding: '10px 8px', fontSize: 13, fontWeight: 600,
               cursor: 'pointer', transition: 'all .16s', border: 'none',
@@ -290,10 +285,10 @@ export default function TestPage({ showToast }) {
         </div>
       </div>
 
-      {/* ════ CONTENT: questions left, leaderboard right ═══ */}
-      <div style={{ maxWidth: 1160, margin: '0 auto', padding: '20px 20px 40px', display: 'grid', gridTemplateColumns: '1fr 290px', gap: 20, alignItems: 'start' }}>
+      {/* ════ CONTENT: single column for questions ═══════ */}
+      <div style={{ maxWidth: 900, margin: '0 auto', padding: '20px 20px 40px' }}>
 
-        {/* Left — questions */}
+        {/* Questions */}
         <div>
           {currentPart && (
             <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10, padding: '10px 16px', marginBottom: 14, fontSize: 13, color: '#475569', boxShadow: '0 1px 3px rgba(15,23,42,.06)' }}>
@@ -315,12 +310,12 @@ export default function TestPage({ showToast }) {
             </p>
             <div style={{ display: 'flex', gap: 8 }}>
               {partIdx > 0 && (
-                <button onClick={() => setPartIdx(i => i - 1)} style={{ padding: '9px 20px', borderRadius: 8, background: 'transparent', border: '1px solid #cbd5e1', color: '#475569', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'Plus Jakarta Sans,sans-serif' }}>
+                <button onClick={() => setPartIdx(prev => prev - 1)} style={{ padding: '9px 20px', borderRadius: 8, background: 'transparent', border: '1px solid #cbd5e1', color: '#475569', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'Plus Jakarta Sans,sans-serif' }}>
                   ← Previous
                 </button>
               )}
-              {partIdx < (test.parts?.length || 0) - 1 && (
-                <button onClick={() => { setPartIdx(i => i + 1); window.scrollTo({ top: 0, behavior: 'smooth' }) }} style={{ padding: '9px 20px', borderRadius: 8, background: 'transparent', border: '1px solid #cbd5e1', color: '#475569', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'Plus Jakarta Sans,sans-serif' }}>
+              {partIdx < (test?.parts?.length || 0) - 1 && (
+                <button onClick={() => { setPartIdx(prev => prev + 1); window.scrollTo({ top: 0, behavior: 'smooth' }) }} style={{ padding: '9px 20px', borderRadius: 8, background: 'transparent', border: '1px solid #cbd5e1', color: '#475569', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'Plus Jakarta Sans,sans-serif' }}>
                   Next Part →
                 </button>
               )}
@@ -329,16 +324,6 @@ export default function TestPage({ showToast }) {
               </button>
             </div>
           </div>
-        </div>
-
-        {/* Right — per-test leaderboard */}
-        <div style={{ position: 'sticky', top: 150 }}>
-          {test && (
-            <TestLeaderboard
-              testId={test.id}
-              testTitle={test.title}
-            />
-          )}
         </div>
 
       </div>
