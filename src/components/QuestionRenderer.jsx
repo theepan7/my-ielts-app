@@ -209,76 +209,105 @@ function McqSection({ section, answers, onChange, reviewMode }) {
     <SectionCard section={section}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
         {(section.questions || []).map(q => {
-          const selected = answers[q.qNo]
+
+          const isMulti = Array.isArray(q.answers)
+          const selected = answers[q.qNo] || (isMulti ? [] : '')
+
+          const correctAnswers = isMulti ? q.answers : [q.answer]
+
+          function toggle(letter) {
+            if (reviewMode) return
+
+            if (!isMulti) {
+              onChange(q.qNo, letter)
+              return
+            }
+
+            let updated = [...selected]
+
+            if (updated.includes(letter)) {
+              updated = updated.filter(l => l !== letter)
+            } else {
+              if (q.maxSelect && updated.length >= q.maxSelect) return
+              updated.push(letter)
+            }
+
+            onChange(q.qNo, updated)
+          }
+
           return (
             <div key={q.qNo}>
-              <p style={{ fontSize: 13.5, fontWeight: 500, color: '#0f172a', marginBottom: 8 }}>
-                <span style={{ fontWeight: 700, color: '#94a3b8', marginRight: 6 }}>{q.qNo}.</span>
+              <p style={{ fontSize: 13.5, fontWeight: 500, marginBottom: 8 }}>
+                <span style={{ fontWeight: 700, marginRight: 6 }}>{q.qNo}.</span>
                 {q.text}
               </p>
+
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginLeft: 16 }}>
                 {(q.options || []).map((opt, i) => {
-                  const letter   = String.fromCharCode(65 + i)
-                  const isSel    = selected === letter
-                  const isAns    = reviewMode && letter === q.answer
-                  const isWrong  = reviewMode && isSel && !isAns
-                  // In review: unanswered → highlight the correct answer in green
-                  const notAnswered = reviewMode && !selected
+
+                  const letter = String.fromCharCode(65 + i)
+                  const isSel  = isMulti ? selected.includes(letter) : selected === letter
+                  const isAns  = correctAnswers.includes(letter)
+
+                  const isCorrectSel = reviewMode && isSel && isAns
+                  const isWrongSel   = reviewMode && isSel && !isAns
+                  const isMissed     = reviewMode && !isSel && isAns
 
                   const bg =
-                    isAns   ? '#f0fdf4' :
-                    isWrong ? '#fff5f5' :
-                    isSel   ? '#eff4ff' :
+                    isCorrectSel ? '#f0fdf4' :
+                    isWrongSel   ? '#fff5f5' :
+                    isMissed     ? '#fefce8' :
+                    isSel        ? '#eff4ff' :
                     '#f8fafc'
+
                   const border =
-                    isAns   ? '#4ade80' :
-                    isWrong ? '#f87171' :
-                    isSel   ? '#93c5fd' :
+                    isCorrectSel ? '#4ade80' :
+                    isWrongSel   ? '#f87171' :
+                    isMissed     ? '#facc15' :
+                    isSel        ? '#93c5fd' :
                     '#e2e8f0'
-                  const color =
-                    isAns   ? '#166534' :
-                    isWrong ? '#991b1b' :
-                    isSel   ? '#1d4ed8' :
-                    '#475569'
 
                   return (
                     <div
                       key={letter}
-                      onClick={() => !reviewMode && onChange(q.qNo, letter)}
+                      onClick={() => toggle(letter)}
                       style={{
                         display: 'flex', alignItems: 'center', gap: 10,
                         padding: '9px 12px', borderRadius: 8,
                         border: `1.5px solid ${border}`,
-                        background: bg, color,
+                        background: bg,
                         cursor: reviewMode ? 'default' : 'pointer',
-                        fontSize: 13, transition: 'all .15s',
+                        fontSize: 13,
                       }}
                     >
+                      {/* Checkbox style */}
                       <div style={{
-                        width: 22, height: 22, borderRadius: '50%', flexShrink: 0,
-                        border: `2px solid ${isAns ? '#4ade80' : isWrong ? '#f87171' : isSel ? '#93c5fd' : '#cbd5e1'}`,
-                        background: (isAns || isSel) ? (isAns ? '#4ade80' : '#93c5fd') : 'transparent',
+                        width: 22, height: 22, borderRadius: 6,
+                        border: `2px solid ${border}`,
+                        background: isSel ? border : 'transparent',
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontSize: 10, fontWeight: 700, color: (isAns || isSel) ? '#fff' : '#94a3b8',
+                        color: '#fff', fontSize: 12, fontWeight: 700
                       }}>
-                        {letter}
+                        {isSel ? '✓' : ''}
                       </div>
+
                       <span style={{ flex: 1 }}>{opt}</span>
-                      {/* Always show correct indicator for the right answer in review */}
-                      {isAns && !isSel && (
-                        <span style={{ fontSize: 11, fontWeight: 700, color: '#059669' }}>✓ Correct</span>
-                      )}
-                      {isAns && isSel && (
-                        <span style={{ fontSize: 11, fontWeight: 700, color: '#059669' }}>✓</span>
-                      )}
+
+                      {/* Review indicators */}
+                      {reviewMode && isCorrectSel && <span style={{ color: '#059669', fontSize: 11 }}>✓</span>}
+                      {reviewMode && isWrongSel   && <span style={{ color: '#dc2626', fontSize: 11 }}>✗</span>}
+                      {reviewMode && isMissed     && <span style={{ color: '#ca8a04', fontSize: 11 }}>Missed</span>}
                     </div>
                   )
                 })}
               </div>
-              {/* If unanswered in review — extra notice */}
-              {reviewMode && !selected && (
-                <p style={{ fontSize: 11.5, color: '#dc2626', marginTop: 4, marginLeft: 16 }}>
-                  Not answered — correct answer: <strong style={{ color: '#059669' }}>{q.answer}</strong>
+
+              {/* Summary in review */}
+              {reviewMode && (
+                <p style={{ fontSize: 11.5, marginTop: 6, marginLeft: 16 }}>
+                  Correct answer: <strong style={{ color: '#059669' }}>
+                    {correctAnswers.join(', ')}
+                  </strong>
                 </p>
               )}
             </div>
