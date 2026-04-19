@@ -1,14 +1,13 @@
 // src/components/AudioPlayer.jsx
-import { useRef, useState, useEffect } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 
 export default function AudioPlayer({ audioUrl, partTitle }) {
   const audioRef              = useRef(null)
   const [playing, setPlaying] = useState(false)
   const [current, setCurrent] = useState(0)
   const [duration, setDur]    = useState(0)
-  const [error, setError]     = useState(false)
+  const [error,   setError]   = useState(false)
 
-  // Reset when URL changes
   useEffect(() => {
     setPlaying(false)
     setCurrent(0)
@@ -37,10 +36,8 @@ export default function AudioPlayer({ audioUrl, partTitle }) {
 
   function seek(e) {
     if (!audioRef.current || !duration) return
-    const bar  = e.currentTarget
-    const rect = bar.getBoundingClientRect()
-    const pct  = (e.clientX - rect.left) / rect.width
-    audioRef.current.currentTime = pct * duration
+    const rect = e.currentTarget.getBoundingClientRect()
+    audioRef.current.currentTime = ((e.clientX - rect.left) / rect.width) * duration
   }
 
   function fmt(t) {
@@ -51,73 +48,82 @@ export default function AudioPlayer({ audioUrl, partTitle }) {
   const progress = duration ? (current / duration) * 100 : 0
 
   return (
-    <div className="bg-gradient-to-r from-blue-700 to-blue-800 rounded-xl px-5 py-3.5 mb-4 shadow-md">
-      <div className="flex items-center gap-3">
+    <div style={{
+      background: 'linear-gradient(135deg,#1e40af,#1d4ed8)',
+      padding: '10px 18px',
+      display: 'flex', alignItems: 'center', gap: 12,
+    }}>
+      {/* Icon */}
+      <div style={{
+        width: 32, height: 32, borderRadius: 8,
+        background: 'rgba(255,255,255,.15)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        fontSize: 14, flexShrink: 0,
+      }}>🔊</div>
 
-        {/* Icon */}
-        <div className="w-9 h-9 rounded-lg bg-white/15 flex items-center justify-center text-white text-base flex-shrink-0">
-          🔊
-        </div>
+      <div style={{ flex: 1 }}>
+        {partTitle && (
+          <div style={{ fontSize: 11, color: 'rgba(255,255,255,.6)', marginBottom: 5 }}>
+            {partTitle}
+          </div>
+        )}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          {/* Skip back */}
+          <button onClick={() => skip(-10)} title="-10s" style={{
+            width: 26, height: 26, borderRadius: '50%',
+            background: 'rgba(255,255,255,.15)', border: 'none',
+            color: '#fff', cursor: 'pointer', fontSize: 12,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>↺</button>
 
-        <div className="flex-1 min-w-0">
-          <p className="text-white text-xs font-semibold mb-2 opacity-90">
-            {partTitle} — Audio
-          </p>
+          {/* Play / Pause */}
+          <button onClick={togglePlay} disabled={error} style={{
+            width: 32, height: 32, borderRadius: '50%',
+            background: '#fff', border: 'none',
+            color: '#1d4ed8', fontWeight: 700, fontSize: 13,
+            cursor: error ? 'not-allowed' : 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            opacity: error ? .4 : 1, flexShrink: 0,
+          }}>
+            {playing ? '⏸' : '▶'}
+          </button>
 
-          <div className="flex items-center gap-2">
-            {/* Skip back */}
-            <button
-              onClick={() => skip(-10)}
-              className="w-7 h-7 rounded-full bg-white/15 hover:bg-white/25 flex items-center justify-center text-white text-xs transition-all"
-              title="−10s"
-            >
-              ↺
-            </button>
+          {/* Skip forward */}
+          <button onClick={() => skip(10)} title="+10s" style={{
+            width: 26, height: 26, borderRadius: '50%',
+            background: 'rgba(255,255,255,.15)', border: 'none',
+            color: '#fff', cursor: 'pointer', fontSize: 12,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>↻</button>
 
-            {/* Play / Pause */}
-            <button
-              onClick={togglePlay}
-              disabled={error}
-              className="w-8 h-8 rounded-full bg-white flex items-center justify-center text-blue-700 font-bold text-sm transition-all hover:bg-blue-50 disabled:opacity-40"
-            >
-              {playing ? '⏸' : '▶'}
-            </button>
-
-            {/* Skip forward */}
-            <button
-              onClick={() => skip(10)}
-              className="w-7 h-7 rounded-full bg-white/15 hover:bg-white/25 flex items-center justify-center text-white text-xs transition-all"
-              title="+10s"
-            >
-              ↻
-            </button>
-
-            {/* Progress bar */}
-            <div
-              className="flex-1 h-1.5 bg-white/25 rounded-full cursor-pointer"
-              onClick={seek}
-            >
-              <div
-                className="h-full bg-white rounded-full transition-all duration-300"
-                style={{ width: `${progress}%` }}
-              />
-            </div>
-
-            {/* Time */}
-            <span className="text-white/70 text-[11px] tabular-nums min-w-[72px] text-right">
-              {fmt(current)} / {fmt(duration)}
-            </span>
+          {/* Progress bar */}
+          <div onClick={seek} style={{
+            flex: 1, height: 5, background: 'rgba(255,255,255,.25)',
+            borderRadius: 3, cursor: 'pointer',
+          }}>
+            <div style={{
+              width: `${progress}%`, height: '100%',
+              background: '#fff', borderRadius: 3,
+              transition: 'width .3s',
+            }} />
           </div>
 
-          {error && (
-            <p className="text-red-300 text-[11px] mt-1">
-              ⚠ Audio file not found — check your Firebase Storage URL
-            </p>
-          )}
+          {/* Time */}
+          <span style={{
+            color: 'rgba(255,255,255,.8)', fontSize: 11,
+            fontFamily: 'monospace', minWidth: 80, textAlign: 'right', flexShrink: 0,
+          }}>
+            {fmt(current)} / {fmt(duration)}
+          </span>
         </div>
+
+        {error && (
+          <p style={{ color: '#fca5a5', fontSize: 10.5, marginTop: 4 }}>
+            ⚠ Audio file not found — check Firebase Storage URL
+          </p>
+        )}
       </div>
 
-      {/* Hidden audio element */}
       <audio
         ref={audioRef}
         src={audioUrl}
