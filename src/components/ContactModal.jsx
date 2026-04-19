@@ -1,107 +1,134 @@
-import { useState } from 'react'
+// src/components/ContactModal.jsx
+import React, { useState } from 'react'
 import { sendContactMessage } from '../firebase/services'
 
-const SUBJECTS = [
-  'General Enquiry',
-  'Technical Support',
-  'Account & Billing',
-  'Content Feedback',
-  'Partnership / Press',
-]
+const INPUT = {
+  width: '100%', background: '#f8fafc',
+  border: '1.5px solid #e2e8f0', borderRadius: 8,
+  padding: '9px 12px', color: '#0f172a',
+  fontFamily: 'Plus Jakarta Sans, sans-serif',
+  fontSize: 13, outline: 'none', transition: 'border-color .18s',
+  boxSizing: 'border-box',
+}
+const LABEL = {
+  display: 'block', fontSize: 11.5,
+  fontWeight: 600, color: '#475569', marginBottom: 4,
+}
 
 export default function ContactModal({ onClose, showToast }) {
-  const [form, setForm] = useState({ name: '', email: '', subject: '', message: '' })
-  const [busy, setBusy] = useState(false)
+  const [name,    setName]    = useState('')
+  const [email,   setEmail]   = useState('')
+  const [subject, setSubject] = useState('')
+  const [message, setMessage] = useState('')
+  const [busy,    setBusy]    = useState(false)
 
-  function set(field, val) { setForm(f => ({ ...f, [field]: val })) }
-
-  async function handle(e) {
+  async function handleSubmit(e) {
     e.preventDefault()
-    const { name, email, subject, message } = form
-    if (!name || !email || !subject || !message) {
-      showToast('Please fill in all fields', 'error'); return
+    if (!name.trim() || !email.trim() || !message.trim()) {
+      showToast('Please fill in all required fields.', 'error')
+      return
     }
     setBusy(true)
     try {
-      await sendContactMessage(name, email, subject, message)
-      showToast("Message sent! We'll reply within 24 hours ✉")
+      await sendContactMessage(name.trim(), email.trim(), subject.trim(), message.trim())
+      showToast('Message sent! We\'ll get back to you soon.', 'success')
       onClose()
-    } catch {
-      showToast('Failed to send — please try again', 'error')
+    } catch (err) {
+      showToast('Could not send message — please try again.', 'error')
     }
     setBusy(false)
   }
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-md"
       onClick={e => e.target === e.currentTarget && onClose()}
+      style={{
+        position: 'fixed', inset: 0, zIndex: 500,
+        background: 'rgba(15,23,42,.55)', backdropFilter: 'blur(6px)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20,
+      }}
     >
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-[fadeUp_.22s_ease]">
+      <div style={{
+        background: '#fff', borderRadius: 18, maxWidth: 480, width: '100%',
+        overflow: 'hidden', boxShadow: '0 12px 40px rgba(15,23,42,.14)',
+        animation: 'slideUp .22s ease', maxHeight: '90vh', overflowY: 'auto',
+      }}>
         {/* Header */}
-        <div className="bg-gradient-to-br from-blue-700 to-violet-700 px-6 py-5 relative">
-          <h2 className="font-serif text-xl font-semibold text-white">Get in Touch</h2>
-          <p className="text-blue-200 text-xs mt-1">We respond within 24 hours on weekdays</p>
-          <button
-            onClick={onClose}
-            className="absolute top-3 right-4 w-7 h-7 rounded-full bg-white/15 hover:bg-white/25 flex items-center justify-center text-white/80 text-xs transition-all"
-          >✕</button>
+        <div style={{ background: 'linear-gradient(135deg,#1e3a8a,#4338ca)', padding: '22px 26px', position: 'relative' }}>
+          <h2 style={{ fontFamily: 'Lora,serif', fontSize: '1.15rem', fontWeight: 600, color: '#fff' }}>
+            Contact Us
+          </h2>
+          <p style={{ color: 'rgba(255,255,255,.7)', fontSize: 12.5, marginTop: 3 }}>
+            We'll get back to you within 24 hours
+          </p>
+          <button onClick={onClose} style={{
+            position: 'absolute', top: 12, right: 14,
+            width: 26, height: 26, borderRadius: '50%',
+            background: 'rgba(255,255,255,.15)', border: 'none',
+            color: '#fff', cursor: 'pointer', fontSize: 12,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>✕</button>
         </div>
 
-        <div className="p-6">
-          {/* Info tiles */}
-          <div className="grid grid-cols-3 gap-2 mb-5">
-            {[
-              { icon: '📧', label: 'Email',     val: 'support@ieltslistening.pro' },
-              { icon: '💬', label: 'Live Chat', val: 'Mon–Fri 9am–6pm' },
-              { icon: '📍', label: 'Based in',  val: 'London, UK' },
-            ].map(item => (
-              <div key={item.label} className="bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-center">
-                <div className="text-lg mb-1">{item.icon}</div>
-                <div className="text-[10px] text-slate-400 font-semibold">{item.label}</div>
-                <div className="text-[10.5px] text-slate-700 font-semibold mt-0.5 leading-tight">{item.val}</div>
-              </div>
-            ))}
-          </div>
-
-          <form onSubmit={handle} className="space-y-3">
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="label">Your Name</label>
-                <input className="input" type="text" placeholder="Full name" value={form.name} onChange={e => set('name', e.target.value)} />
-              </div>
-              <div>
-                <label className="label">Email Address</label>
-                <input className="input" type="email" placeholder="your@email.com" value={form.email} onChange={e => set('email', e.target.value)} />
-              </div>
-            </div>
-            <div>
-              <label className="label">Subject</label>
-              <select className="input" value={form.subject} onChange={e => set('subject', e.target.value)}>
-                <option value="">Select a topic…</option>
-                {SUBJECTS.map(s => <option key={s}>{s}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="label">Message</label>
-              <textarea
-                className="input resize-none"
-                rows={4}
-                placeholder="Write your message here…"
-                value={form.message}
-                onChange={e => set('message', e.target.value)}
+        <form onSubmit={handleSubmit} style={{ padding: '22px 26px', display: 'flex', flexDirection: 'column', gap: 14 }} noValidate>
+          <div style={{ display: 'flex', gap: 12 }}>
+            <div style={{ flex: 1 }}>
+              <label style={LABEL}>Name <span style={{ color: '#dc2626' }}>*</span></label>
+              <input style={INPUT} type="text" placeholder="Your name" value={name} onChange={e => setName(e.target.value)}
+                onFocus={e => e.target.style.borderColor = '#2563eb'}
+                onBlur={e => e.target.style.borderColor = '#e2e8f0'}
               />
             </div>
-            <button
-              type="submit"
-              disabled={busy}
-              className="w-full py-2.5 rounded-lg bg-gradient-to-r from-blue-600 to-violet-600 text-white font-bold text-sm transition-all hover:-translate-y-0.5 hover:shadow-lg disabled:opacity-60"
-            >
-              {busy ? 'Sending…' : 'Send Message ✉'}
-            </button>
-          </form>
-        </div>
+            <div style={{ flex: 1 }}>
+              <label style={LABEL}>Email <span style={{ color: '#dc2626' }}>*</span></label>
+              <input style={INPUT} type="email" placeholder="you@example.com" value={email} onChange={e => setEmail(e.target.value)}
+                onFocus={e => e.target.style.borderColor = '#2563eb'}
+                onBlur={e => e.target.style.borderColor = '#e2e8f0'}
+              />
+            </div>
+          </div>
+
+          <div>
+            <label style={LABEL}>Subject</label>
+            <input style={INPUT} type="text" placeholder="What's this about?" value={subject} onChange={e => setSubject(e.target.value)}
+              onFocus={e => e.target.style.borderColor = '#2563eb'}
+              onBlur={e => e.target.style.borderColor = '#e2e8f0'}
+            />
+          </div>
+
+          <div>
+            <label style={LABEL}>Message <span style={{ color: '#dc2626' }}>*</span></label>
+            <textarea
+              value={message}
+              onChange={e => setMessage(e.target.value)}
+              placeholder="Tell us how we can help…"
+              rows={5}
+              style={{ ...INPUT, resize: 'vertical', lineHeight: 1.6 }}
+              onFocus={e => e.target.style.borderColor = '#2563eb'}
+              onBlur={e => e.target.style.borderColor = '#e2e8f0'}
+            />
+          </div>
+
+          <button type="submit" disabled={busy} style={{
+            padding: '11px', borderRadius: 8, border: 'none',
+            background: busy ? '#94a3b8' : 'linear-gradient(135deg,#2563eb,#7c3aed)',
+            color: '#fff', fontWeight: 700, fontSize: 14,
+            cursor: busy ? 'not-allowed' : 'pointer',
+            fontFamily: 'Plus Jakarta Sans, sans-serif',
+            boxShadow: busy ? 'none' : '0 4px 14px rgba(37,99,235,.25)',
+            transition: 'all .2s',
+          }}>
+            {busy ? 'Sending…' : 'Send Message →'}
+          </button>
+        </form>
       </div>
+
+      <style>{`
+        @keyframes slideUp {
+          from { opacity:0; transform:translateY(18px) scale(.97) }
+          to   { opacity:1; transform:translateY(0) scale(1) }
+        }
+      `}</style>
     </div>
   )
 }
