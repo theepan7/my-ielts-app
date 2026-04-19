@@ -4,7 +4,6 @@ import { useParams, useNavigate }       from 'react-router-dom'
 import { useAuth }                      from '../context/AuthContext'
 import { fetchTestWithQuestions, saveResult, calcBand } from '../firebase/services'
 import QuestionRenderer from '../components/QuestionRenderer'
-import { TestLeaderboard } from '../components/Leaderboard'
 import AudioPlayer from '../components/AudioPlayer'
 
 
@@ -234,7 +233,7 @@ export default function TestPage({ showToast }) {
       </div>
 
       {/* ════ CONTENT: questions left, leaderboard right ═══ */}
-      <div style={{ maxWidth: 1160, margin: '0 auto', padding: '20px 20px 40px', display: 'grid', gridTemplateColumns: '1fr 290px', gap: 20, alignItems: 'start' }}>
+      <div style={{ maxWidth: 1160, margin: '0 auto', padding: '20px 20px 40px', display: 'grid', gridTemplateColumns: '1fr', gap: 20, alignItems: 'start' }}>
 
         {/* Left — questions */}
         <div>
@@ -273,17 +272,7 @@ export default function TestPage({ showToast }) {
             </div>
           </div>
         </div>
-
-        {/* Right — per-test leaderboard */}
-        <div style={{ position: 'sticky', top: 150 }}>
-          {test && (
-            <TestLeaderboard
-              testId={test.id}
-              testTitle={test.title}
-            />
-          )}
-        </div>
-
+   
       </div>
 
       <style>{`
