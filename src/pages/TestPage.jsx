@@ -23,14 +23,19 @@ export default function TestPage({ showToast }) {
 
   const timerRef  = useRef(null)
   const startTime = useRef(Date.now())
+  const prevUserRef = useRef(user)
 
   // ── Redirect to home if user signs out while on test page ──
-  useEffect(() => {
-    if (user === null) {
-      clearInterval(timerRef.current)
-      navigate('/', { replace: true })
-    }
-  }, [user])
+  
+useEffect(() => {
+  // If user was logged in before and now becomes null → logout event
+  if (prevUserRef.current && user === null) {
+    clearInterval(timerRef.current)
+    navigate('/', { replace: true })
+  }
+
+  prevUserRef.current = user
+}, [user])
 
   useEffect(() => {
     setLoading(true)
@@ -233,7 +238,7 @@ export default function TestPage({ showToast }) {
       </div>
 
       {/* ════ CONTENT: questions left, leaderboard right ═══ */}
-      <div style={{ maxWidth: 1160, margin: '0 auto', padding: '20px 20px 40px', display: 'grid', gridTemplateColumns: '1fr', gap: 20, alignItems: 'start' }}>
+      <div style={{ maxWidth: 820, margin: '0 auto', padding: '20px 20px 40px', display: 'grid', gridTemplateColumns: '1fr', gap: 20, alignItems: 'start' }}>
 
         {/* Left — questions */}
         <div>
