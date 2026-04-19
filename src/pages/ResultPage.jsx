@@ -5,12 +5,19 @@ import AudioPlayer          from '../components/AudioPlayer'
 import QuestionRenderer     from '../components/QuestionRenderer'
 import { ResultLeaderboard} from '../components/Leaderboard'
 import { MIN_ANSWERS_FOR_BAND } from '../firebase/services'
+import { useAuth }              from '../context/AuthContext'
 
 export default function ResultPage() {
   const { state }  = useLocation()
   const navigate   = useNavigate()
 
   useEffect(() => { if (!state) navigate('/') }, [])
+
+  // Redirect to home if user signs out while viewing results
+  const { user } = useAuth()
+  useEffect(() => {
+    if (user === null) navigate('/', { replace: true })
+  }, [user])
   if (!state) return null
 
   const { testTitle, correct, total, band, elapsed, partScores, answers, test } = state
