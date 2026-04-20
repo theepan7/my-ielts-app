@@ -266,7 +266,7 @@ export async function fetchHomeLeaderboard() {
   const snap = await getDocs(
     query(
       collection(db, 'leaderboard'),
-      where('testsCompleted', '>', 0),  // ← only users who've done at least 1 test
+      where('testsCompleted', '>', 0),
       orderBy('testsCompleted', 'desc'),
       orderBy('avgBand', 'desc'),
       limit(5)
