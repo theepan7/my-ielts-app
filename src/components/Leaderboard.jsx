@@ -121,7 +121,7 @@ export function ResultLeaderboard({ testId, testTitle }) {
         setEntries(lb)
         setUserEntry(ue)
       } catch (err) {
-        console.error('ResultLeaderboard error:', err)
+        console.error('HomeLeaderboard error:', err)
       } finally {
         setLoading(false)
       }
