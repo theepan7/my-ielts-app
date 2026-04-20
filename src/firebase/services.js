@@ -65,10 +65,8 @@ export async function fetchTestWithQuestions(testDocId) {
 // ─────────────────────────────────────────────────────────
 //  REBUILD HOME LEADERBOARD CACHE
 //
-//  Reads top 5 from leaderboard collection and writes them
-//  into a single cache document: cache/homeLeaderboard
-//  Called once after every saveResult — costs 6 reads + 1 write
-//  but saves hundreds of reads from all homepage visitors
+//  Writes top 5 into cache/homeLeaderboard
+//  Cost: 5 reads + 1 write — only runs on test completion
 // ─────────────────────────────────────────────────────────
 
 async function rebuildHomeLeaderboard() {
@@ -85,7 +83,6 @@ async function rebuildHomeLeaderboard() {
 
     const entries = snap.docs.map((d, i) => {
       const data = d.data()
-      // Only store fields the UI needs — keeps cache doc small
       return {
         rank:           i + 1,
         userId:         d.id,
@@ -102,28 +99,70 @@ async function rebuildHomeLeaderboard() {
       entries,
       updatedAt: serverTimestamp(),
     })
+
+    // Bust in-memory cache so next read gets fresh data
+    _homeLbCache     = entries
+    _homeLbCacheTime = Date.now()
   } catch (err) {
-    // Non-fatal — homepage will just show stale cache or empty
     console.error('rebuildHomeLeaderboard failed:', err)
   }
 }
 
 // ─────────────────────────────────────────────────────────
-//  SAVE RESULT
+//  REBUILD PER-TEST LEADERBOARD CACHE
 //
-//  FIX 1: testId is always stored as a NUMBER for consistency
-//  FIX 2: country is read from the existing leaderboard doc
-//         so it is never overwritten with empty strings
-//  FIX 3: userName falls back to email prefix if displayName is null
-//  FIX 4: rebuilds home leaderboard cache after every save
+//  Writes top 10 for a specific test into:
+//  cache/testLeaderboard_{testId}
+//  Cost: 10 reads + 1 write — only runs on test completion
+// ─────────────────────────────────────────────────────────
+
+async function rebuildTestLeaderboard(numericTestId) {
+  try {
+    const snap = await getDocs(
+      query(
+        collection(db, 'testLeaderboard', String(numericTestId), 'entries'),
+        orderBy('correct', 'desc'),
+        orderBy('elapsed', 'asc'),
+        limit(10)
+      )
+    )
+
+    const entries = snap.docs.map((d, i) => {
+      const data = d.data()
+      return {
+        rank:     i + 1,
+        userId:   d.id,
+        userName: data.userName || 'Student',
+        correct:  data.correct  || 0,
+        elapsed:  data.elapsed  || 0,
+        band:     data.band     || '—',
+      }
+    })
+
+    await setDoc(doc(db, 'cache', `testLeaderboard_${numericTestId}`), {
+      entries,
+      testId:    numericTestId,
+      updatedAt: serverTimestamp(),
+    })
+
+    // Bust in-memory cache for this test
+    _testLbCache[numericTestId]     = entries
+    _testLbCacheTime[numericTestId] = Date.now()
+  } catch (err) {
+    console.error(`rebuildTestLeaderboard(${numericTestId}) failed:`, err)
+  }
+}
+
+// ─────────────────────────────────────────────────────────
+//  SAVE RESULT
 // ─────────────────────────────────────────────────────────
 
 export async function saveResult(
   userId,
-  userDisplayName,   // may be null for some OAuth users
-  userEmail,         // always available — used as fallback
+  userDisplayName,
+  userEmail,
   testDocId,
-  testId,            // stored as number always
+  testId,
   correct,
   total,
   band,
@@ -132,14 +171,12 @@ export async function saveResult(
 ) {
   const qualifies = correct >= MIN_ANSWERS_FOR_BAND
 
-  // Resolve a clean userName — never store null/undefined
   const userName = (
     userDisplayName?.trim() ||
     userEmail?.split('@')[0] ||
     'Student'
   )
 
-  // Normalise testId to number
   const numericTestId = typeof testId === 'number' ? testId : parseInt(testId, 10) || 0
 
   // 1. Always save the attempt record
@@ -160,7 +197,7 @@ export async function saveResult(
 
   if (!qualifies) return
 
-  // ── 2. Per-test leaderboard ────────────────────────────
+  // ── 2. Per-test leaderboard entry ─────────────────────
   const testLbRef = doc(
     db, 'testLeaderboard', String(numericTestId), 'entries', userId
   )
@@ -194,7 +231,7 @@ export async function saveResult(
     }
   })
 
-  // ── 3. Overall leaderboard ─────────────────────────────
+  // ── 3. Overall leaderboard entry ───────────────────────
   const lbRef = doc(db, 'leaderboard', userId)
 
   await runTransaction(db, async tx => {
@@ -253,18 +290,46 @@ export async function saveResult(
     }
   })
 
-  // ── 4. Rebuild home leaderboard cache ─────────────────
-  // Runs after every qualifying result so the homepage always
-  // shows fresh data with zero extra reads for visitors
-  await rebuildHomeLeaderboard()
+  // ── 4. Rebuild both caches in parallel ─────────────────
+  // Non-blocking — both run simultaneously, not sequentially
+  await Promise.all([
+    rebuildHomeLeaderboard(),
+    rebuildTestLeaderboard(numericTestId),
+  ])
 }
 
 // ─────────────────────────────────────────────────────────
-//  PER-TEST LEADERBOARD
+//  PER-TEST LEADERBOARD — reads from cache
+//
+//  Cost: 1 read per result page visit (was 10+ reads)
+//  Falls back to live query if cache doc doesn't exist yet
 // ─────────────────────────────────────────────────────────
+
+const _testLbCache     = {}  // { [testId]: entries[] }
+const _testLbCacheTime = {}  // { [testId]: timestamp }
+const TEST_LB_TTL_MS   = 5 * 60 * 1000  // 5 minutes
 
 export async function fetchTestLeaderboard(testId, count = 10) {
   const numId = typeof testId === 'number' ? testId : parseInt(testId, 10) || 0
+  const now   = Date.now()
+
+  // Serve from memory if fresh — 0 Firestore reads
+  if (_testLbCache[numId] && now - _testLbCacheTime[numId] < TEST_LB_TTL_MS) {
+    return _testLbCache[numId]
+  }
+
+  try {
+    // Read single cache document — 1 Firestore read
+    const cacheSnap = await getDoc(doc(db, 'cache', `testLeaderboard_${numId}`))
+    if (cacheSnap.exists()) {
+      const entries = cacheSnap.data().entries || []
+      _testLbCache[numId]     = entries
+      _testLbCacheTime[numId] = now
+      return entries
+    }
+  } catch (_) {}
+
+  // Cache miss (first ever load) — fall back to live query
   const snap = await getDocs(
     query(
       collection(db, 'testLeaderboard', String(numId), 'entries'),
@@ -273,17 +338,41 @@ export async function fetchTestLeaderboard(testId, count = 10) {
       limit(count)
     )
   )
-  return snap.docs.map((d, i) => ({ rank: i + 1, ...d.data() }))
+  const entries = snap.docs.map((d, i) => ({ rank: i + 1, ...d.data() }))
+
+  // Populate cache for next visitor
+  rebuildTestLeaderboard(numId)
+
+  return entries
 }
+
+// ─────────────────────────────────────────────────────────
+//  USER TEST ENTRY — uses cache to compute rank cheaply
+// ─────────────────────────────────────────────────────────
 
 export async function fetchUserTestEntry(testId, userId) {
   const numId = typeof testId === 'number' ? testId : parseInt(testId, 10) || 0
+
+  // Read user's own entry — always 1 read
   const snap = await getDoc(
     doc(db, 'testLeaderboard', String(numId), 'entries', userId)
   )
   if (!snap.exists()) return null
   const entry = snap.data()
 
+  // Use cached top 10 to determine rank — 0 extra reads if cache is warm
+  const cachedEntries = _testLbCache[numId] || []
+  if (cachedEntries.length > 0) {
+    const rankIndex = cachedEntries.findIndex(e => e.userId === userId)
+    if (rankIndex !== -1) {
+      // User is in top 10
+      return { rank: rankIndex + 1, ...entry }
+    }
+    // User is outside top 10
+    return { rank: cachedEntries.length + 1, ...entry }
+  }
+
+  // Cache cold — fall back to counting better entries
   const [higherSnap, fasterSnap] = await Promise.all([
     getDocs(query(
       collection(db, 'testLeaderboard', String(numId), 'entries'),
@@ -302,9 +391,8 @@ export async function fetchUserTestEntry(testId, userId) {
 // ─────────────────────────────────────────────────────────
 //  HOME LEADERBOARD — reads single cache document
 //
-//  Cost: 1 read per visitor (was 5+ reads with collection query)
-//  Cache is rebuilt by saveResult after every qualifying test
-//  In-memory TTL avoids repeat reads within the same session
+//  Cost: 1 read per visitor (was 5+ reads)
+//  In-memory TTL avoids repeat reads within same session
 // ─────────────────────────────────────────────────────────
 
 let _homeLbCache     = null
@@ -312,7 +400,6 @@ let _homeLbCacheTime = 0
 const HOME_LB_TTL_MS = 5 * 60 * 1000  // 5 minutes
 
 export async function fetchHomeLeaderboard() {
-  // Serve from memory if fresh enough — costs 0 Firestore reads
   const now = Date.now()
   if (_homeLbCache && now - _homeLbCacheTime < HOME_LB_TTL_MS) {
     return _homeLbCache
@@ -327,7 +414,7 @@ export async function fetchHomeLeaderboard() {
     return _homeLbCache
   } catch (err) {
     console.error('fetchHomeLeaderboard failed:', err)
-    return _homeLbCache || []  // return stale cache on error rather than empty
+    return _homeLbCache || []
   }
 }
 
