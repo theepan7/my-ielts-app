@@ -267,9 +267,8 @@ export async function fetchHomeLeaderboard() {
   const snap = await getDocs(
     query(
       collection(db, 'leaderboard'),
-      where('seed', '!=', true),
-      orderBy('seed'),
-      orderBy('avgScore', 'desc'),
+      orderBy('avgBand', 'desc'),
+      orderBy('testsCompleted', 'desc'),
       limit(5)
     )
   )
