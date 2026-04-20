@@ -1,6 +1,6 @@
 // src/firebase/services.js
 import {
-  collection, doc, getDoc, getDocs, addDoc,
+  collection, doc, getDoc, getDocs, addDoc, setDoc,
   query, orderBy, limit, where,
   serverTimestamp, runTransaction
 } from 'firebase/firestore'
@@ -63,12 +63,59 @@ export async function fetchTestWithQuestions(testDocId) {
 }
 
 // ─────────────────────────────────────────────────────────
+//  REBUILD HOME LEADERBOARD CACHE
+//
+//  Reads top 5 from leaderboard collection and writes them
+//  into a single cache document: cache/homeLeaderboard
+//  Called once after every saveResult — costs 6 reads + 1 write
+//  but saves hundreds of reads from all homepage visitors
+// ─────────────────────────────────────────────────────────
+
+async function rebuildHomeLeaderboard() {
+  try {
+    const snap = await getDocs(
+      query(
+        collection(db, 'leaderboard'),
+        where('testsCompleted', '>', 0),
+        orderBy('testsCompleted', 'desc'),
+        orderBy('avgBand', 'desc'),
+        limit(5)
+      )
+    )
+
+    const entries = snap.docs.map((d, i) => {
+      const data = d.data()
+      // Only store fields the UI needs — keeps cache doc small
+      return {
+        rank:           i + 1,
+        userId:         d.id,
+        userName:       data.userName        || 'Student',
+        avgBand:        data.avgBand         || '—',
+        avgScore:       data.avgScore        || 0,
+        testsCompleted: data.testsCompleted  || 0,
+        countryFlag:    data.countryFlag     || '',
+        countryCode:    data.countryCode     || '',
+      }
+    })
+
+    await setDoc(doc(db, 'cache', 'homeLeaderboard'), {
+      entries,
+      updatedAt: serverTimestamp(),
+    })
+  } catch (err) {
+    // Non-fatal — homepage will just show stale cache or empty
+    console.error('rebuildHomeLeaderboard failed:', err)
+  }
+}
+
+// ─────────────────────────────────────────────────────────
 //  SAVE RESULT
 //
 //  FIX 1: testId is always stored as a NUMBER for consistency
 //  FIX 2: country is read from the existing leaderboard doc
 //         so it is never overwritten with empty strings
 //  FIX 3: userName falls back to email prefix if displayName is null
+//  FIX 4: rebuilds home leaderboard cache after every save
 // ─────────────────────────────────────────────────────────
 
 export async function saveResult(
@@ -114,8 +161,6 @@ export async function saveResult(
   if (!qualifies) return
 
   // ── 2. Per-test leaderboard ────────────────────────────
-  // Path: /testLeaderboard/{testId}/entries/{userId}
-  // FIX: always use String(numericTestId) as the doc key
   const testLbRef = doc(
     db, 'testLeaderboard', String(numericTestId), 'entries', userId
   )
@@ -138,7 +183,6 @@ export async function saveResult(
       const betterScore     = correct > (d.correct || 0)
       const sameScoreFaster = correct === d.correct && elapsed < (d.elapsed || 9999)
       if (betterScore || sameScoreFaster) {
-        // Also update userName in case they changed their display name
         tx.update(testLbRef, {
           userName,
           correct,
@@ -151,17 +195,12 @@ export async function saveResult(
   })
 
   // ── 3. Overall leaderboard ─────────────────────────────
-  // FIX: read existing doc first to preserve country fields
   const lbRef = doc(db, 'leaderboard', userId)
 
   await runTransaction(db, async tx => {
     const lbSnap = await tx.get(lbRef)
 
     if (!lbSnap.exists()) {
-      // Brand new user in leaderboard — country will be empty here
-      // but AuthContext.signup() already set it — this case only happens
-      // if saveResult is called before the leaderboard doc exists (race).
-      // We write minimal data; next login/action will fill country.
       tx.set(lbRef, {
         userId,
         userName,
@@ -172,15 +211,13 @@ export async function saveResult(
         avgBand:         band,
         bestBand:        band,
         bestScore:       correct,
-        // country stays empty — already set by AuthContext signup
         countryCode:     '',
         countryName:     '',
         countryFlag:     '🌍',
-        seed:            false,    // real user — never seed
+        seed:            false,
         lastPlayed:      serverTimestamp(),
       })
     } else {
-      // EXISTING user doc — read current data and update correctly
       const d           = lbSnap.data()
       const uniqueDone  = d.uniqueTestsDone || []
       const bestScores  = d.bestScores      || {}
@@ -202,7 +239,7 @@ export async function saveResult(
       const currBandNum   = parseFloat(band || '0')
 
       tx.update(lbRef, {
-        userName,             // keep display name in sync
+        userName,
         testsCompleted:  newCount,
         uniqueTestsDone: newUniqueDone,
         bestScores:      newBestScores,
@@ -210,13 +247,16 @@ export async function saveResult(
         avgBand:         newAvgBand,
         bestBand:        currBandNum > prevBestBand ? band : d.bestBand,
         bestScore:       Math.max(d.bestScore || 0, correct),
-        seed:            false,   // ensure real users never have seed=true
+        seed:            false,
         lastPlayed:      serverTimestamp(),
-        // country fields are NOT touched here — they were set at signup
-        // and should never be overwritten by a test result
       })
     }
   })
+
+  // ── 4. Rebuild home leaderboard cache ─────────────────
+  // Runs after every qualifying result so the homepage always
+  // shows fresh data with zero extra reads for visitors
+  await rebuildHomeLeaderboard()
 }
 
 // ─────────────────────────────────────────────────────────
@@ -260,18 +300,35 @@ export async function fetchUserTestEntry(testId, userId) {
 }
 
 // ─────────────────────────────────────────────────────────
-//  HOME LEADERBOARD  — top 5 real users by avg score
+//  HOME LEADERBOARD — reads single cache document
+//
+//  Cost: 1 read per visitor (was 5+ reads with collection query)
+//  Cache is rebuilt by saveResult after every qualifying test
+//  In-memory TTL avoids repeat reads within the same session
 // ─────────────────────────────────────────────────────────
+
+let _homeLbCache     = null
+let _homeLbCacheTime = 0
+const HOME_LB_TTL_MS = 5 * 60 * 1000  // 5 minutes
+
 export async function fetchHomeLeaderboard() {
-  const snap = await getDocs(
-    query(
-      collection(db, 'leaderboard'),
-      where('testsCompleted', '>', 0),
-      orderBy('testsCompleted', 'desc'),
-      limit(5)
-    )
-  )
-  return snap.docs.map((d, i) => ({ rank: i + 1, ...d.data() }))
+  // Serve from memory if fresh enough — costs 0 Firestore reads
+  const now = Date.now()
+  if (_homeLbCache && now - _homeLbCacheTime < HOME_LB_TTL_MS) {
+    return _homeLbCache
+  }
+
+  try {
+    const snap = await getDoc(doc(db, 'cache', 'homeLeaderboard'))
+    if (!snap.exists()) return []
+
+    _homeLbCache     = snap.data().entries || []
+    _homeLbCacheTime = now
+    return _homeLbCache
+  } catch (err) {
+    console.error('fetchHomeLeaderboard failed:', err)
+    return _homeLbCache || []  // return stale cache on error rather than empty
+  }
 }
 
 // ─────────────────────────────────────────────────────────
