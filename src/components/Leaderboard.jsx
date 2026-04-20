@@ -251,11 +251,15 @@ export function HomeLeaderboard() {
     } catch (_) {} finally { setLoading(false) }
   }
 
-  useEffect(() => {
-    load()
-    const interval = setInterval(load, 60000)
-    return () => clearInterval(interval)
-  }, [])
+ useEffect(() => {
+  const delay = setTimeout(load, 1500) // wait for backend update
+  const interval = setInterval(load, 60000)
+
+  return () => {
+    clearTimeout(delay)
+    clearInterval(interval)
+  }
+}, [])
 
   return (
     <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 12, padding: 16, boxShadow: '0 1px 3px rgba(15,23,42,.07)' }}>
