@@ -263,16 +263,23 @@ export async function fetchUserTestEntry(testId, userId) {
 //  HOME LEADERBOARD  — top 5 real users by avg score
 // ─────────────────────────────────────────────────────────
 export async function fetchHomeLeaderboard() {
-  const snap = await getDocs(
-    query(
-      collection(db, 'leaderboard'),
-      where('testsCompleted', '>', 0),
-      orderBy('testsCompleted', 'desc'),
-      orderBy('avgBand', 'desc'),
-      limit(5)
+  try {
+    const snap = await getDocs(
+      query(
+        collection(db, 'leaderboard'),
+        where('testsCompleted', '>', 0),
+        orderBy('testsCompleted', 'desc'),
+        orderBy('avgBand', 'desc'),
+        limit(5)
+      )
     )
-  )
-  return snap.docs.map((d, i) => ({ rank: i + 1, ...d.data() }))
+    console.log('count:', snap.docs.length)
+    console.log('data:', snap.docs.map(d => d.data()))
+    return snap.docs.map((d, i) => ({ rank: i + 1, ...d.data() }))
+  } catch (err) {
+    console.error('fetchHomeLeaderboard FAILED:', err)
+    return []
+  }
 }
 
 // ─────────────────────────────────────────────────────────
