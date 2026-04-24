@@ -1,8 +1,21 @@
+// src/components/TestCard.jsx
+
+// Maps a test's skill type to badge styles and icons
+const SKILL_BADGE = {
+  listening: { label: '🎧 Listening', bg: '#eff4ff', color: '#2563eb', border: '#bfdbfe' },
+  reading:   { label: '📖 Reading',   bg: '#ecfdf5', color: '#059669', border: '#6ee7b7' },
+  writing:   { label: '✍️ Writing',   bg: '#fffbeb', color: '#d97706', border: '#fcd34d' },
+  speaking:  { label: '🎤 Speaking',  bg: '#fef2f2', color: '#dc2626', border: '#fca5a5' },
+}
+
 export default function TestCard({ test, isCompleted, onClick }) {
   const isLocked  = !test.isFree && !onClick.isLoggedIn
-  const diffColor = test.difficulty === 'Advanced'
-    ? 'text-red-500' : test.difficulty === 'Intermediate'
-    ? 'text-green-600' : 'text-amber-500'
+
+  // Determine skill type — falls back to 'listening' for legacy cards
+  const skillType  = (test.skillType || test.skill || 'listening').toLowerCase()
+  const skillBadge = SKILL_BADGE[skillType] || SKILL_BADGE.listening
+
+  // Category stripe colours remain the same
   const stripeClass = test.category === 'academic'
     ? 'from-violet-500 to-purple-400'
     : 'from-teal-500 to-cyan-400'
@@ -37,7 +50,16 @@ export default function TestCard({ test, isCompleted, onClick }) {
         <div className="flex flex-wrap gap-1.5 items-center">
           <span className="text-[11px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full">⏱ {test.duration}m</span>
           <span className="text-[11px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full">📝 {test.questions} Qs</span>
-          <span className={`text-[11px] bg-slate-100 px-2 py-0.5 rounded-full font-medium ${diffColor}`}>{test.difficulty}</span>
+
+          {/* Skill type badge — replaces difficulty */}
+          <span style={{
+            fontSize: 11, padding: '2px 8px', borderRadius: 9999, fontWeight: 600,
+            background: skillBadge.bg, color: skillBadge.color,
+            border: `1px solid ${skillBadge.border}`,
+          }}>
+            {skillBadge.label}
+          </span>
+
           <span className={`text-[11px] px-2 py-0.5 rounded-full font-semibold border ${
             test.category === 'academic'
               ? 'bg-violet-50 text-violet-600 border-violet-200'
