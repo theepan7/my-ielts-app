@@ -45,24 +45,36 @@ function Dropdown({ label, items, icon }) {
           position: 'absolute', top: 'calc(100% + 6px)', left: 0,
           background: '#fff', border: '1px solid #e2e8f0', borderRadius: 12,
           boxShadow: '0 8px 24px rgba(15,23,42,.12)',
-          minWidth: 210, zIndex: 300, overflow: 'hidden',
+          minWidth: 230, zIndex: 300, overflow: 'hidden',
           animation: 'dropIn .15s ease',
         }}>
           {items.map((item, i) =>
             item.divider ? (
               <div key={i} style={{ height: 1, background: '#f1f5f9', margin: '4px 0' }} />
+            ) : item.sectionLabel ? (
+              <div key={i} style={{
+                padding: '8px 14px 4px',
+                fontSize: 10, fontWeight: 700, color: '#94a3b8',
+                textTransform: 'uppercase', letterSpacing: '0.08em',
+                fontFamily: 'Plus Jakarta Sans, sans-serif',
+              }}>
+                {item.sectionLabel}
+              </div>
             ) : (
               <button
                 key={i}
                 onClick={() => { item.action(); setOpen(false) }}
+                disabled={item.comingSoon}
                 style={{
                   display: 'flex', alignItems: 'center', gap: 10,
                   width: '100%', padding: '10px 14px',
                   background: 'none', border: 'none', textAlign: 'left',
-                  cursor: 'pointer', fontSize: 13, color: '#0f172a',
+                  cursor: item.comingSoon ? 'default' : 'pointer',
+                  fontSize: 13, color: item.comingSoon ? '#94a3b8' : '#0f172a',
                   fontFamily: 'Plus Jakarta Sans, sans-serif', transition: 'background .12s',
+                  opacity: item.comingSoon ? 0.65 : 1,
                 }}
-                onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'}
+                onMouseEnter={e => { if (!item.comingSoon) e.currentTarget.style.background = '#f8fafc' }}
                 onMouseLeave={e => e.currentTarget.style.background = 'none'}
               >
                 {item.icon && (
@@ -74,8 +86,16 @@ function Dropdown({ label, items, icon }) {
                     {item.icon}
                   </span>
                 )}
-                <div>
-                  <div style={{ fontWeight: 500 }}>{item.label}</div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 500, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    {item.label}
+                    {item.comingSoon && (
+                      <span style={{
+                        fontSize: 9, fontWeight: 700, padding: '1px 5px', borderRadius: 4,
+                        background: '#f1f5f9', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em',
+                      }}>Soon</span>
+                    )}
+                  </div>
                   {item.desc && <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 1 }}>{item.desc}</div>}
                 </div>
               </button>
@@ -92,7 +112,47 @@ export default function Navbar({ onAuthClick, onContactClick }) {
   const navigate         = useNavigate()
 
   const practiceItems = [
-    { label: 'All Tests', desc: 'Browse the complete test library', icon: '📋', iconBg: '#eff4ff', action: () => navigate('/') },
+    // ── All Tests ──
+    {
+      label: 'All Tests',
+      desc: 'Browse the complete test library',
+      icon: '📋',
+      iconBg: '#eff4ff',
+      action: () => navigate('/', { state: { filter: 'all' } }),
+    },
+    { divider: true },
+    // ── By Skill section label ──
+    { sectionLabel: 'By Skill' },
+    {
+      label: 'Listening',
+      desc: 'Audio-based comprehension tests',
+      icon: '🎧',
+      iconBg: '#eff4ff',
+      action: () => navigate('/', { state: { filter: 'listening' } }),
+    },
+    {
+      label: 'Reading',
+      desc: 'Passage-based reading tests',
+      icon: '📖',
+      iconBg: '#ecfdf5',
+      action: () => navigate('/', { state: { filter: 'reading' } }),
+    },
+    {
+      label: 'Writing',
+      desc: 'Task 1 & Task 2 practice',
+      icon: '✍️',
+      iconBg: '#fffbeb',
+      comingSoon: true,
+      action: () => {},
+    },
+    {
+      label: 'Speaking',
+      desc: 'Part 1, 2 & 3 mock interviews',
+      icon: '🎤',
+      iconBg: '#fef2f2',
+      comingSoon: true,
+      action: () => {},
+    },
   ]
 
   const resourceItems = [
