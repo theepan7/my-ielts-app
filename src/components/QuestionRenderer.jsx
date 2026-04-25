@@ -8,6 +8,7 @@ export default function QuestionRenderer({ section, answers, onChange, reviewMod
   if (type === 'form')     return <FormSection     section={section} answers={answers} onChange={onChange} reviewMode={reviewMode} />
   if (type === 'table')    return <TableSection     section={section} answers={answers} onChange={onChange} reviewMode={reviewMode} />
   if (type === 'mcq')      return <McqSection       section={section} answers={answers} onChange={onChange} reviewMode={reviewMode} />
+  if (type === 'mcqgroup') return <McqGroupSection  section={section} answers={answers} onChange={onChange} reviewMode={reviewMode} />
   if (type === 'fill')     return <FillSection      section={section} answers={answers} onChange={onChange} reviewMode={reviewMode} />
   if (type === 'notes')    return <NotesSection     section={section} answers={answers} onChange={onChange} reviewMode={reviewMode} />
   if (type === 'map')      return <MapSection       section={section} answers={answers} onChange={onChange} reviewMode={reviewMode} />
@@ -23,8 +24,19 @@ function norm(str) {
   return String(str || '').trim().toLowerCase().replace(/\s+/g, ' ')
 }
 
+// Handles both string and array correct answers (case-sensitive)
 function isCorrect(userAnswer, correctAnswer) {
-  return norm(userAnswer) === norm(correctAnswer)
+  const ua = norm(userAnswer)
+  if (Array.isArray(correctAnswer)) {
+    return correctAnswer.some(a => norm(a) === ua)
+  }
+  return norm(correctAnswer) === ua
+}
+
+// Returns the display value for correct answer (first item if array)
+function displayAnswer(correctAnswer) {
+  if (Array.isArray(correctAnswer)) return correctAnswer[0]
+  return correctAnswer
 }
 
 // Returns styling for an answer input based on review state
@@ -43,21 +55,17 @@ function inputStyle(qNo, answers, correctAnswer, reviewMode) {
 
   if (!reviewMode) return { ...base, borderColor: '#94a3b8' }
 
-  const val = answers[qNo]
+  const val      = answers[qNo]
   const answered = val !== undefined && val !== ''
 
-  if (!answered) {
-    // Not answered — show as blank red border, correct answer shown below
-    return { ...base, borderColor: '#f87171', background: '#fff5f5' }
-  }
+  if (!answered) return { ...base, borderColor: '#f87171', background: '#fff5f5' }
   if (isCorrect(val, correctAnswer)) {
     return { ...base, borderColor: '#4ade80', background: '#f0fdf4', color: '#166534' }
   }
   return { ...base, borderColor: '#f87171', background: '#fff5f5', color: '#991b1b' }
 }
 
-// Always shows correct answer in review mode
-// Shows for: unanswered, wrong answers — in both cases student needs to know the answer
+// Always shows correct answer in review mode for wrong/unanswered questions
 function CorrectAnswer({ qNo, answers, correctAnswer, reviewMode }) {
   if (!reviewMode) return null
 
@@ -65,8 +73,19 @@ function CorrectAnswer({ qNo, answers, correctAnswer, reviewMode }) {
   const answered = val !== undefined && val !== ''
   const correct  = answered && isCorrect(val, correctAnswer)
 
-  // Don't show hint if already correct
-  if (correct) return null
+  // Show green tick if correct
+if (correct) return (
+  <span style={{
+    display: 'inline-flex', alignItems: 'center', gap: 3,
+    marginLeft: 6,
+    fontSize: 11.5, fontWeight: 600,
+    color: '#059669',
+    background: '#ecfdf5', border: '1px solid #a7f3d0',
+    borderRadius: 5, padding: '1px 7px',
+  }}>
+    ✓ {displayAnswer(correctAnswer)}
+  </span>
+)
 
   return (
     <span style={{
@@ -77,7 +96,7 @@ function CorrectAnswer({ qNo, answers, correctAnswer, reviewMode }) {
       background: '#ecfdf5', border: '1px solid #a7f3d0',
       borderRadius: 5, padding: '1px 7px',
     }}>
-      ✓ {correctAnswer}
+      ✓ {displayAnswer(correctAnswer)}
     </span>
   )
 }
@@ -133,7 +152,7 @@ function FormSection({ section, answers, onChange, reviewMode }) {
               value={answers[field.qNo] || ''}
               onChange={e => onChange(field.qNo, e.target.value)}
               readOnly={reviewMode}
-              placeholder={reviewMode && !(answers[field.qNo]) ? '(not answered)' : '…'}
+              placeholder={reviewMode && !answers[field.qNo] ? '(not answered)' : '…'}
               style={inputStyle(field.qNo, answers, field.answer, reviewMode)}
             />
             {field.suffix && <span style={{ fontSize: 12, color: '#64748b' }}>{field.suffix}</span>}
@@ -210,28 +229,20 @@ function McqSection({ section, answers, onChange, reviewMode }) {
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
         {(section.questions || []).map(q => {
 
-          const isMulti = Array.isArray(q.answers)
-          const selected = answers[q.qNo] || (isMulti ? [] : '')
-
+          const isMulti       = Array.isArray(q.answers)
+          const selected      = answers[q.qNo] || (isMulti ? [] : '')
           const correctAnswers = isMulti ? q.answers : [q.answer]
 
           function toggle(letter) {
             if (reviewMode) return
-
-            if (!isMulti) {
-              onChange(q.qNo, letter)
-              return
-            }
-
+            if (!isMulti) { onChange(q.qNo, letter); return }
             let updated = [...selected]
-
             if (updated.includes(letter)) {
               updated = updated.filter(l => l !== letter)
             } else {
               if (q.maxSelect && updated.length >= q.maxSelect) return
               updated.push(letter)
             }
-
             onChange(q.qNo, updated)
           }
 
@@ -244,11 +255,9 @@ function McqSection({ section, answers, onChange, reviewMode }) {
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginLeft: 16 }}>
                 {(q.options || []).map((opt, i) => {
-
-                  const letter = String.fromCharCode(65 + i)
-                  const isSel  = isMulti ? selected.includes(letter) : selected === letter
-                  const isAns  = correctAnswers.includes(letter)
-
+                  const letter       = String.fromCharCode(65 + i)
+                  const isSel        = isMulti ? selected.includes(letter) : selected === letter
+                  const isAns        = correctAnswers.includes(letter)
                   const isCorrectSel = reviewMode && isSel && isAns
                   const isWrongSel   = reviewMode && isSel && !isAns
                   const isMissed     = reviewMode && !isSel && isAns
@@ -257,15 +266,13 @@ function McqSection({ section, answers, onChange, reviewMode }) {
                     isCorrectSel ? '#f0fdf4' :
                     isWrongSel   ? '#fff5f5' :
                     isMissed     ? '#fefce8' :
-                    isSel        ? '#eff4ff' :
-                    '#f8fafc'
+                    isSel        ? '#eff4ff' : '#f8fafc'
 
                   const border =
                     isCorrectSel ? '#4ade80' :
                     isWrongSel   ? '#f87171' :
                     isMissed     ? '#facc15' :
-                    isSel        ? '#93c5fd' :
-                    '#e2e8f0'
+                    isSel        ? '#93c5fd' : '#e2e8f0'
 
                   return (
                     <div
@@ -280,31 +287,26 @@ function McqSection({ section, answers, onChange, reviewMode }) {
                         fontSize: 13,
                       }}
                     >
-                      {/* Checkbox style */}
                       <div style={{
                         width: 22, height: 22, borderRadius: 6,
                         border: `2px solid ${border}`,
                         background: isSel ? border : 'transparent',
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        color: '#fff', fontSize: 12, fontWeight: 700
+                        color: '#fff', fontSize: 12, fontWeight: 700, flexShrink: 0,
                       }}>
-                        {isSel ? '✓' : ''}
+                        {isSel ? '✓' : letter}
                       </div>
-
                       <span style={{ flex: 1 }}>{opt}</span>
-
-                      {/* Review indicators */}
-                      {reviewMode && isCorrectSel && <span style={{ color: '#059669', fontSize: 11 }}>✓</span>}
-                      {reviewMode && isWrongSel   && <span style={{ color: '#dc2626', fontSize: 11 }}>✗</span>}
+                      {reviewMode && isCorrectSel && <span style={{ color: '#059669', fontSize: 11 }}>✓ Correct</span>}
+                      {reviewMode && isWrongSel   && <span style={{ color: '#dc2626', fontSize: 11 }}>✗ Wrong</span>}
                       {reviewMode && isMissed     && <span style={{ color: '#ca8a04', fontSize: 11 }}>Missed</span>}
                     </div>
                   )
                 })}
               </div>
 
-              {/* Summary in review */}
               {reviewMode && (
-                <p style={{ fontSize: 11.5, marginTop: 6, marginLeft: 16 }}>
+                <p style={{ fontSize: 11.5, marginTop: 6, marginLeft: 16, color: '#475569' }}>
                   Correct answer: <strong style={{ color: '#059669' }}>
                     {correctAnswers.join(', ')}
                   </strong>
@@ -317,8 +319,79 @@ function McqSection({ section, answers, onChange, reviewMode }) {
     </SectionCard>
   )
 }
+
 // ─────────────────────────────────────────────────────────
-//  4. FILL IN THE BLANK SECTION
+//  4. MCQ GROUP SECTION (choose multiple from one list)
+// ─────────────────────────────────────────────────────────
+function McqGroupSection({ section, answers, onChange, reviewMode }) {
+  const letters = (section.options || []).map((_, i) => String.fromCharCode(65 + i))
+  const correctAnswers = (section.questions || []).map(q => q.answer)
+
+  return (
+    <SectionCard section={section}>
+      {/* Options list */}
+      <div style={{
+        background: '#f8fafc', border: '1px solid #e2e8f0',
+        borderRadius: 8, padding: '10px 14px', marginBottom: 14,
+      }}>
+        <p style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 7 }}>
+          Options
+        </p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+          {(section.options || []).map((opt, i) => (
+            <p key={i} style={{ fontSize: 13, color: '#475569' }}>
+              <span style={{ fontWeight: 700, color: '#64748b', marginRight: 6 }}>{letters[i]}.</span>
+              {opt}
+            </p>
+          ))}
+        </div>
+      </div>
+
+      {/* Answer slots */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {(section.questions || []).map(q => {
+          const selected = answers[q.qNo] || ''
+          const correct  = reviewMode && selected === q.answer
+          const wrong    = reviewMode && selected && selected !== q.answer
+          const noAnswer = reviewMode && !selected
+
+          return (
+            <div key={q.qNo} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', minWidth: 20 }}>{q.qNo}.</span>
+              <select
+                value={selected}
+                onChange={e => !reviewMode && onChange(q.qNo, e.target.value)}
+                disabled={reviewMode}
+                style={{
+                  fontSize: 13, padding: '6px 10px', borderRadius: 7,
+                  border: `1.5px solid ${correct ? '#4ade80' : wrong || noAnswer ? '#f87171' : selected ? '#93c5fd' : '#e2e8f0'}`,
+                  background: correct ? '#f0fdf4' : wrong || noAnswer ? '#fff5f5' : selected ? '#eff4ff' : '#fff',
+                  color: correct ? '#166534' : wrong ? '#991b1b' : '#475569',
+                  outline: 'none',
+                }}
+              >
+                <option value="">{noAnswer ? '(not answered)' : 'Select…'}</option>
+                {letters.map(l => <option key={l} value={l}>{l}</option>)}
+              </select>
+              {reviewMode && (wrong || noAnswer) && (
+                <span style={{
+                  fontSize: 11.5, fontWeight: 600, color: '#059669',
+                  background: '#ecfdf5', border: '1px solid #a7f3d0',
+                  borderRadius: 5, padding: '1px 7px',
+                }}>
+                  ✓ {q.answer}
+                </span>
+              )}
+            </div>
+          )
+        })}
+      </div>
+    </SectionCard>
+  )
+}
+
+// ─────────────────────────────────────────────────────────
+//  5. FILL IN THE BLANK SECTION
 // ─────────────────────────────────────────────────────────
 function FillSection({ section, answers, onChange, reviewMode }) {
   return (
@@ -337,7 +410,6 @@ function FillSection({ section, answers, onChange, reviewMode }) {
               style={inputStyle(q.qNo, answers, q.answer, reviewMode)}
             />
             {q.after && <span>{q.after}</span>}
-            {/* Always show correct answer if wrong or unanswered */}
             <CorrectAnswer qNo={q.qNo} answers={answers} correctAnswer={q.answer} reviewMode={reviewMode} />
           </div>
         ))}
@@ -347,7 +419,7 @@ function FillSection({ section, answers, onChange, reviewMode }) {
 }
 
 // ─────────────────────────────────────────────────────────
-//  5. NOTES SECTION
+//  6. NOTES SECTION
 // ─────────────────────────────────────────────────────────
 function NotesSection({ section, answers, onChange, reviewMode }) {
   return (
@@ -358,49 +430,41 @@ function NotesSection({ section, answers, onChange, reviewMode }) {
         </p>
       )}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-        {(section.lines || []).map((line, li) => (
-          <NoteLine key={li} line={line} answers={answers} onChange={onChange} reviewMode={reviewMode} />
-        ))}
+        {(section.lines || []).map((line, li) => {
+          // Static line (no question number)
+          if (!line.qNo) {
+            return (
+              <p key={li} style={{ fontSize: 13, color: '#475569', marginLeft: 8, fontWeight: line.bold ? 700 : 400 }}>
+                {line.before || line.text || ''}
+              </p>
+            )
+          }
+
+          // Line with a blank
+          return (
+            <div key={li} style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 5, fontSize: 13, color: '#334155', marginLeft: 8 }}>
+              <span style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8' }}>{line.qNo}.</span>
+              {line.before && <span>{line.before}</span>}
+              <input
+                type="text"
+                value={answers[line.qNo] || ''}
+                onChange={e => onChange(line.qNo, e.target.value)}
+                readOnly={reviewMode}
+                placeholder={reviewMode && !answers[line.qNo] ? '(not answered)' : '…'}
+                style={inputStyle(line.qNo, answers, line.answer, reviewMode)}
+              />
+              {line.after && <span>{line.after}</span>}
+              <CorrectAnswer qNo={line.qNo} answers={answers} correctAnswer={line.answer} reviewMode={reviewMode} />
+            </div>
+          )
+        })}
       </div>
     </SectionCard>
   )
 }
 
-function NoteLine({ line, answers, onChange, reviewMode }) {
-  if (!line.fields || line.fields.length === 0) {
-    return <p style={{ fontSize: 13, color: '#475569', marginLeft: 8 }}>{line.text}</p>
-  }
-  const parts = (line.text || '').split('__')
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 4, fontSize: 13, color: '#475569', marginLeft: 8 }}>
-      {parts.map((part, i) => (
-        <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-          <span>{part}</span>
-          {i < line.fields.length && (() => {
-            const field = line.fields[i]
-            return (
-              <>
-                <span style={{ fontSize: 10, fontWeight: 700, color: '#94a3b8' }}>{field.qNo}.</span>
-                <input
-                  type="text"
-                  value={answers[field.qNo] || ''}
-                  onChange={e => onChange(field.qNo, e.target.value)}
-                  readOnly={reviewMode}
-                  placeholder={reviewMode && !answers[field.qNo] ? '(not answered)' : '…'}
-                  style={inputStyle(field.qNo, answers, field.answer, reviewMode)}
-                />
-                <CorrectAnswer qNo={field.qNo} answers={answers} correctAnswer={field.answer} reviewMode={reviewMode} />
-              </>
-            )
-          })()}
-        </span>
-      ))}
-    </div>
-  )
-}
-
 // ─────────────────────────────────────────────────────────
-//  6. MAP / DIAGRAM SECTION
+//  7. MAP / DIAGRAM SECTION
 // ─────────────────────────────────────────────────────────
 function MapSection({ section, answers, onChange, reviewMode }) {
   return (
@@ -434,10 +498,16 @@ function MapSection({ section, answers, onChange, reviewMode }) {
 }
 
 // ─────────────────────────────────────────────────────────
-//  7. MATCHING SECTION
+//  8. MATCHING SECTION
 // ─────────────────────────────────────────────────────────
 function MatchingSection({ section, answers, onChange, reviewMode }) {
-  const letters = (section.options || []).map((_, i) => String.fromCharCode(65 + i))
+  // Support both plain string options and object options {letter, text}
+  const options = (section.options || []).map((opt, i) =>
+    typeof opt === 'object'
+      ? { letter: opt.letter || String.fromCharCode(65 + i), label: opt.text || opt.label || '' }
+      : { letter: String.fromCharCode(65 + i), label: opt }
+  )
+  const letters = options.map(o => o.letter)
 
   return (
     <SectionCard section={section}>
@@ -450,22 +520,22 @@ function MatchingSection({ section, answers, onChange, reviewMode }) {
           Options
         </p>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-          {(section.options || []).map((opt, i) => (
-            <p key={i} style={{ fontSize: 13, color: '#475569' }}>
-              <span style={{ fontWeight: 700, color: '#64748b', marginRight: 4 }}>{letters[i]}.</span>
-              {opt}
+          {options.map(opt => (
+            <p key={opt.letter} style={{ fontSize: 13, color: '#475569' }}>
+              <span style={{ fontWeight: 700, color: '#64748b', marginRight: 6 }}>{opt.letter}.</span>
+              {opt.label}
             </p>
           ))}
         </div>
       </div>
 
-      {/* Items */}
+      {/* Items — supports both section.items and section.questions */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-        {(section.items || []).map(item => {
-          const selected  = answers[item.qNo]
-          const correct   = reviewMode && selected === item.answer
-          const wrong     = reviewMode && selected && selected !== item.answer
-          const noAnswer  = reviewMode && !selected
+        {(section.items || section.questions || []).map(item => {
+          const selected = answers[item.qNo]
+          const correct  = reviewMode && selected === item.answer
+          const wrong    = reviewMode && selected && selected !== item.answer
+          const noAnswer = reviewMode && !selected
 
           return (
             <div key={item.qNo} style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
@@ -477,8 +547,8 @@ function MatchingSection({ section, answers, onChange, reviewMode }) {
                 disabled={reviewMode}
                 style={{
                   fontSize: 13, padding: '6px 10px', borderRadius: 7,
-                  border: `1.5px solid ${correct ? '#4ade80' : wrong ? '#f87171' : noAnswer ? '#f87171' : selected ? '#93c5fd' : '#e2e8f0'}`,
-                  background: correct ? '#f0fdf4' : wrong ? '#fff5f5' : noAnswer ? '#fff5f5' : selected ? '#eff4ff' : '#fff',
+                  border: `1.5px solid ${correct ? '#4ade80' : wrong || noAnswer ? '#f87171' : selected ? '#93c5fd' : '#e2e8f0'}`,
+                  background: correct ? '#f0fdf4' : wrong || noAnswer ? '#fff5f5' : selected ? '#eff4ff' : '#fff',
                   color: correct ? '#166534' : wrong ? '#991b1b' : '#475569',
                   outline: 'none',
                 }}
@@ -486,7 +556,6 @@ function MatchingSection({ section, answers, onChange, reviewMode }) {
                 <option value="">{noAnswer ? '(not answered)' : 'Select…'}</option>
                 {letters.map(l => <option key={l} value={l}>{l}</option>)}
               </select>
-              {/* Always show correct answer if wrong or unanswered */}
               {reviewMode && (wrong || noAnswer) && (
                 <span style={{
                   fontSize: 11.5, fontWeight: 600, color: '#059669',
