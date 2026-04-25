@@ -13,7 +13,7 @@ const diffStyle = d =>
   d === 'Intermediate'? { color: '#059669' } :
                         { color: '#d97706' }
 
-const PER_PAGE = 12
+const PER_PAGE = 9
 
 export default function HomePage({ onAuthClick, showToast }) {
   const { user }    = useAuth()
@@ -83,7 +83,7 @@ export default function HomePage({ onAuthClick, showToast }) {
         padding: '44px 28px 40px', textAlign: 'center', position: 'relative', overflow: 'hidden',
       }}>
         <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse at 25% 60%,rgba(255,255,255,.06),transparent 55%)', pointerEvents: 'none' }} />
-        <div style={{ maxWidth: 240, margin: '0 auto', position: 'relative', zIndex: 1 }}>
+        <div style={{ maxWidth: 740, margin: '0 auto', position: 'relative', zIndex: 1 }}>
           <div style={{
             display: 'inline-flex', alignItems: 'center', gap: 6,
             background: 'rgba(255,255,255,.12)', border: '1px solid rgba(255,255,255,.2)',
