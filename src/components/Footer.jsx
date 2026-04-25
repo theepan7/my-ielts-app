@@ -53,7 +53,7 @@ export default function Footer({ onContactClick }) {
             </span>
           </div>
           <p style={{ fontSize: 12, color: '#475569', lineHeight: 1.75, maxWidth: 270, marginBottom: 14 }}>
-            The most comprehensive IELTS Listening practice platform — 100 full tests with authentic audio and instant band score results.
+            The most comprehensive IELTS Listening practice platform — 200+ full tests with authentic audio and instant band score results.
           </p>
           <div style={{ display: 'flex', gap: 7 }}>
             {['𝕏', 'f', '▶', '◈', 'in'].map((s, i) => (
