@@ -88,7 +88,7 @@ export default function HomePage({ onAuthClick, showToast }) {
             display: 'inline-flex', alignItems: 'center', gap: 6,
             background: 'rgba(255,255,255,.12)', border: '1px solid rgba(255,255,255,.2)',
             color: 'rgba(255,255,255,.85)', borderRadius: 20, padding: '4px 14px',
-            fontSize: 11.5, fontWeight: 500, marginBottom: 14,
+            fontSize: 11.5, fontWeight: 500, marginBottom: 5,
           }}>
             ✦ 200+ Full-Length Practice Tests
           </div>
