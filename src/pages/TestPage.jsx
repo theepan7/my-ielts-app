@@ -93,36 +93,68 @@ export default function TestPage({ showToast }) {
       (section.items || section.questions || []).forEach(item => fields.push({ qNo: item.qNo, answer: item.answer }))
 
     else if (section.type === 'mcqgroup')
-      (section.questions || []).forEach(q => fields.push({ qNo: q.qNo, answer: q.answer }))
+  // Push as a group — all qNos and answers together
+  fields.push({
+    qNo: `mcqgroup_${section.heading}`,
+    answer: (section.questions || []).map(q => q.answer),
+    isGroup: true,
+    groupQNos: (section.questions || []).map(q => q.qNo)
+  })
 
     return fields
   }
 
-  // ── Score calculation using shared isAnswerCorrect ────────
-  function calculateScore() {
-    if (!test) return { correct: 0, total: 0, partScores: {} }
-    let totalCorrect = 0, totalQs = 0
-    const partScores = {}
-    test.parts.forEach(part => {
-      let partCorrect = 0, partTotal = 0
-      part.sections.forEach(section => {
-        const fields = getAllFields(section)
-        fields.forEach(({ qNo, answer }) => {
+ function calculateScore() {
+  if (!test) return { correct: 0, total: 0, partScores: {} }
+  let totalCorrect = 0, totalQs = 0
+  const partScores = {}
+  test.parts.forEach(part => {
+    let partCorrect = 0, partTotal = 0
+    part.sections.forEach(section => {
+      const fields = getAllFields(section)
+      fields.forEach(({ qNo, answer, isGroup, groupQNos }) => {
+        if (isGroup) {
+          // Each question in the group counts as 1 mark
+          const correctSet = answer.map(a => a.toUpperCase())
+          const userSet = groupQNos.map(q => String(answers[q] || '').toUpperCase())
+          // Check if user selections match correct answers in any order
+          const allCorrect =
+            correctSet.length === userSet.filter(u => u !== '').length &&
+            correctSet.every(a => userSet.includes(a)) &&
+            userSet.filter(u => u !== '').every(u => correctSet.includes(u))
+
+          groupQNos.forEach((_, i) => {
+            partTotal++
+            totalQs++
+          })
+          if (allCorrect) {
+            partCorrect += correctSet.length
+            totalCorrect += correctSet.length
+          } else {
+            // Partial credit — count individually correct selections
+            userSet.forEach(u => {
+              if (u !== '' && correctSet.includes(u)) {
+                partCorrect++
+                totalCorrect++
+              }
+            })
+          }
+        } else {
           partTotal++
           if (isAnswerCorrect(answers[qNo], answer)) {
             partCorrect++
             totalCorrect++
           }
-        })
-        totalQs += fields.length
+        }
       })
-      partScores[part.partNo] = {
-        correct: partCorrect, total: partTotal,
-        band: calcBand(Math.round((partCorrect / Math.max(partTotal, 1)) * 40))
-      }
     })
-    return { correct: totalCorrect, total: totalQs, partScores }
-  }
+    partScores[part.partNo] = {
+      correct: partCorrect, total: partTotal,
+      band: calcBand(Math.round((partCorrect / Math.max(partTotal, 1)) * 40))
+    }
+  })
+  return { correct: totalCorrect, total: totalQs, partScores }
+}
 
   async function handleFinish(autoSubmit = false) {
     if (!autoSubmit) {
