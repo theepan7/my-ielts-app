@@ -99,7 +99,7 @@ export default function HomePage({ onAuthClick, showToast }) {
             Authentic recordings · Real exam questions · Instant band score results
           </p>
           <div style={{ display: 'flex', justifyContent: 'center', gap: 28, flexWrap: 'wrap' }}>
-            {[['100','Tests'],['4,000+','Questions'],['9.0','Max Band']].map(([n,l]) => (
+            {[['200+','Tests'],['8,000+','Questions'],['9.0','Max Band'],['5K+','Active Students']].map(([n,l]) => (
               <div key={l} style={{ textAlign: 'center' }}>
                 <div style={{ fontFamily: 'Lora,serif', fontSize: '1.4rem', fontWeight: 700, color: '#fff' }}>{n}</div>
                 <div style={{ fontSize: 11, color: 'rgba(255,255,255,.55)', marginTop: 2 }}>{l}</div>
