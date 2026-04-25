@@ -324,8 +324,13 @@ function McqSection({ section, answers, onChange, reviewMode }) {
 //  4. MCQ GROUP SECTION (choose multiple from one list)
 // ─────────────────────────────────────────────────────────
 function McqGroupSection({ section, answers, onChange, reviewMode }) {
-  const letters = (section.options || []).map((_, i) => String.fromCharCode(65 + i))
-  const correctAnswers = (section.questions || []).map(q => q.answer)
+  const letters  = (section.options || []).map((_, i) => String.fromCharCode(65 + i))
+  const correctAnswers = (section.questions || []).map(q => q.answer.toUpperCase())
+
+  // All user selections across slots
+  const userSelections = (section.questions || []).map(q =>
+    String(answers[q.qNo] || '').toUpperCase()
+  )
 
   return (
     <SectionCard section={section}>
@@ -349,42 +354,63 @@ function McqGroupSection({ section, answers, onChange, reviewMode }) {
 
       {/* Answer slots */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-        {(section.questions || []).map(q => {
-          const selected = answers[q.qNo] || ''
-          const correct  = reviewMode && selected === q.answer
-          const wrong    = reviewMode && selected && selected !== q.answer
-          const noAnswer = reviewMode && !selected
+        {(section.questions || []).map((q, i) => {
+          const selected = String(answers[q.qNo] || '').toUpperCase()
+
+          // In review: a selection is correct if it exists in the correct set
+          const isCorrectChoice = reviewMode && selected !== '' && correctAnswers.includes(selected)
+          // Wrong if selected something not in correct set
+          const isWrongChoice   = reviewMode && selected !== '' && !correctAnswers.includes(selected)
+          // Slot is empty
+          const noAnswer        = reviewMode && selected === ''
 
           return (
             <div key={q.qNo} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <span style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', minWidth: 20 }}>{q.qNo}.</span>
               <select
-                value={selected}
+                value={answers[q.qNo] || ''}
                 onChange={e => !reviewMode && onChange(q.qNo, e.target.value)}
                 disabled={reviewMode}
                 style={{
                   fontSize: 13, padding: '6px 10px', borderRadius: 7,
-                  border: `1.5px solid ${correct ? '#4ade80' : wrong || noAnswer ? '#f87171' : selected ? '#93c5fd' : '#e2e8f0'}`,
-                  background: correct ? '#f0fdf4' : wrong || noAnswer ? '#fff5f5' : selected ? '#eff4ff' : '#fff',
-                  color: correct ? '#166534' : wrong ? '#991b1b' : '#475569',
+                  border: `1.5px solid ${
+                    isCorrectChoice ? '#4ade80' :
+                    isWrongChoice || noAnswer ? '#f87171' :
+                    selected ? '#93c5fd' : '#e2e8f0'
+                  }`,
+                  background: isCorrectChoice ? '#f0fdf4' : isWrongChoice || noAnswer ? '#fff5f5' : selected ? '#eff4ff' : '#fff',
+                  color: isCorrectChoice ? '#166534' : isWrongChoice ? '#991b1b' : '#475569',
                   outline: 'none',
                 }}
               >
                 <option value="">{noAnswer ? '(not answered)' : 'Select…'}</option>
                 {letters.map(l => <option key={l} value={l}>{l}</option>)}
               </select>
-              {reviewMode && (wrong || noAnswer) && (
+
+              {/* Show correct badge always in review */}
+              {reviewMode && (
                 <span style={{
-                  fontSize: 11.5, fontWeight: 600, color: '#059669',
-                  background: '#ecfdf5', border: '1px solid #a7f3d0',
+                  fontSize: 11.5, fontWeight: 600,
+                  color: isCorrectChoice ? '#059669' : '#dc2626',
+                  background: isCorrectChoice ? '#ecfdf5' : '#fff5f5',
+                  border: `1px solid ${isCorrectChoice ? '#a7f3d0' : '#fca5a5'}`,
                   borderRadius: 5, padding: '1px 7px',
                 }}>
-                  ✓ {q.answer}
+                  {isCorrectChoice ? '✓' : '✗'}
                 </span>
               )}
             </div>
           )
         })}
+
+        {/* Show correct answer set in review */}
+        {reviewMode && (
+          <p style={{ fontSize: 11.5, color: '#475569', marginTop: 4 }}>
+            Correct answers (any order): <strong style={{ color: '#059669' }}>
+              {correctAnswers.join(', ')}
+            </strong>
+          </p>
+        )}
       </div>
     </SectionCard>
   )
