@@ -95,7 +95,7 @@ export default function HomePage({ onAuthClick, showToast }) {
           <h1 style={{ fontFamily: 'Lora,serif', fontSize: '2rem', fontWeight: 600, color: '#fff', lineHeight: 1.2, marginBottom: 8 }}>
             Master IELTS Listening
           </h1>
-          <p style={{ color: 'rgba(255,255,255,.7)', fontSize: 14, marginBottom: 22 }}>
+          <p style={{ color: 'rgba(255,255,255,.7)', fontSize: 14, marginBottom: 14 }}>
             Authentic recordings · Real exam questions · Instant band score results
           </p>
           <div style={{ display: 'flex', justifyContent: 'center', gap: 28, flexWrap: 'wrap' }}>
