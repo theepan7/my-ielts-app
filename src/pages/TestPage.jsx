@@ -7,6 +7,16 @@ import QuestionRenderer from '../components/QuestionRenderer'
 import AudioPlayer from '../components/AudioPlayer'
 
 
+// ── Shared answer checker (case-insensitive, handles arrays) ──
+function isAnswerCorrect(userAnswer, correctAnswer) {
+  const normalize = str => String(str || '').trim().toLowerCase().replace(/\s+/g, ' ')
+  const ua = normalize(userAnswer)
+  if (Array.isArray(correctAnswer)) {
+    return correctAnswer.some(a => normalize(a) === ua)
+  }
+  return normalize(correctAnswer) === ua
+}
+
 // ── Main Test Page ────────────────────────────────────────
 export default function TestPage({ showToast }) {
   const { testId }  = useParams()
@@ -26,16 +36,13 @@ export default function TestPage({ showToast }) {
   const prevUserRef = useRef(user)
 
   // ── Redirect to home if user signs out while on test page ──
-  
-useEffect(() => {
-  // If user was logged in before and now becomes null → logout event
-  if (prevUserRef.current && user === null) {
-    clearInterval(timerRef.current)
-    navigate('/', { replace: true })
-  }
-
-  prevUserRef.current = user
-}, [user])
+  useEffect(() => {
+    if (prevUserRef.current && user === null) {
+      clearInterval(timerRef.current)
+      navigate('/', { replace: true })
+    }
+    prevUserRef.current = user
+  }, [user])
 
   useEffect(() => {
     setLoading(true)
@@ -58,6 +65,40 @@ useEffect(() => {
     setAnswers(prev => ({ ...prev, [qNo]: value }))
   }
 
+  // ── Extract all scoreable fields from any section type ──
+  function getAllFields(section) {
+    const fields = []
+    if (section.type === 'form')
+      (section.fields || []).forEach(f => fields.push({ qNo: f.qNo, answer: f.answer }))
+
+    else if (section.type === 'table')
+      (section.rows || []).forEach(row =>
+        (row.cells || []).forEach(cell => { if (cell.qNo) fields.push({ qNo: cell.qNo, answer: cell.answer }) })
+      )
+
+    else if (section.type === 'mcq' || section.type === 'fill')
+      (section.questions || []).forEach(q => fields.push({ qNo: q.qNo, answer: q.answer }))
+
+    else if (section.type === 'notes')
+      // New structure: section.lines[] with qNo directly on each line
+      (section.lines || []).forEach(line => {
+        if (line.qNo) fields.push({ qNo: line.qNo, answer: line.answer })
+      })
+
+    else if (section.type === 'map')
+      (section.questions || []).forEach(q => fields.push({ qNo: q.qNo, answer: q.answer }))
+
+    else if (section.type === 'matching')
+      // Support both section.items and section.questions
+      (section.items || section.questions || []).forEach(item => fields.push({ qNo: item.qNo, answer: item.answer }))
+
+    else if (section.type === 'mcqgroup')
+      (section.questions || []).forEach(q => fields.push({ qNo: q.qNo, answer: q.answer }))
+
+    return fields
+  }
+
+  // ── Score calculation using shared isAnswerCorrect ────────
   function calculateScore() {
     if (!test) return { correct: 0, total: 0, partScores: {} }
     let totalCorrect = 0, totalQs = 0
@@ -68,9 +109,10 @@ useEffect(() => {
         const fields = getAllFields(section)
         fields.forEach(({ qNo, answer }) => {
           partTotal++
-          const ua = String(answers[qNo] || '').trim().toLowerCase()
-          const ca = String(answer   || '').trim().toLowerCase()
-          if (ua === ca) { partCorrect++; totalCorrect++ }
+          if (isAnswerCorrect(answers[qNo], answer)) {
+            partCorrect++
+            totalCorrect++
+          }
         })
         totalQs += fields.length
       })
@@ -82,29 +124,6 @@ useEffect(() => {
     return { correct: totalCorrect, total: totalQs, partScores }
   }
 
-  function getAllFields(section) {
-    const fields = []
-    if (section.type === 'form')
-      (section.fields || []).forEach(f => fields.push({ qNo: f.qNo, answer: f.answer }))
-    else if (section.type === 'table')
-      (section.rows || []).forEach(row =>
-        (row.cells || []).forEach(cell => { if (cell.qNo) fields.push({ qNo: cell.qNo, answer: cell.answer }) })
-      )
-    else if (section.type === 'mcq' || section.type === 'fill')
-      (section.questions || []).forEach(q => fields.push({ qNo: q.qNo, answer: q.answer }))
-    else if (section.type === 'notes')
-      (section.lines || []).forEach(line =>
-        (line.fields || []).forEach(f => fields.push({ qNo: f.qNo, answer: f.answer }))
-      )
-    else if (section.type === 'map')
-      (section.questions || []).forEach(q => fields.push({ qNo: q.qNo, answer: q.answer }))
-    else if (section.type === 'matching')
-      (section.items || []).forEach(item => fields.push({ qNo: item.qNo, answer: item.answer }))
-    return fields
-  }
-
-  // ── FIX: correct saveResult signature ────────────────────
-  // New signature: saveResult(userId, displayName, email, testDocId, testId, correct, total, band, partScores, elapsed)
   async function handleFinish(autoSubmit = false) {
     if (!autoSubmit) {
       const { total } = calculateScore()
@@ -123,19 +142,17 @@ useEffect(() => {
     if (user) {
       setSaving(true)
       try {
-        // ── FIXED call — passes displayName AND email separately,
-        //    plus elapsed so time tiebreaker works ──────────────
         await saveResult(
           user.uid,
-          user.displayName,   // may be null — services.js handles fallback
-          user.email,         // always available
-          testId,             // testDocId (string from URL params)
-          test.id,            // numeric test id from Firestore doc
+          user.displayName,
+          user.email,
+          testId,
+          test.id,
           correct,
           total,
           band,
           partScores,
-          elapsed             // seconds taken — used for tiebreaker
+          elapsed
         )
         if (band) {
           showToast('Result saved! Leaderboard updated ✓', 'success')
@@ -182,7 +199,9 @@ useEffect(() => {
 
   const currentPart = test.parts?.[partIdx]
   const { total: runTotal } = calculateScore()
-  const answered = Object.keys(answers).length
+  const answered = Object.values(answers).filter(v =>
+    v !== '' && v !== null && v !== undefined && !(Array.isArray(v) && v.length === 0)
+  ).length
   const audioUrl = test.audioUrl || currentPart?.audioUrl || ''
 
   return (
@@ -237,10 +256,8 @@ useEffect(() => {
         </div>
       </div>
 
-      {/* ════ CONTENT: questions left, leaderboard right ═══ */}
+      {/* ════ CONTENT ══════════════════════════════════════ */}
       <div style={{ maxWidth: 820, margin: '0 auto', padding: '20px 20px 40px', display: 'grid', gridTemplateColumns: '1fr', gap: 20, alignItems: 'start' }}>
-
-        {/* Left — questions */}
         <div>
           {currentPart && (
             <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10, padding: '10px 16px', marginBottom: 14, fontSize: 13, color: '#475569', boxShadow: '0 1px 3px rgba(15,23,42,.06)' }}>
@@ -277,7 +294,6 @@ useEffect(() => {
             </div>
           </div>
         </div>
-   
       </div>
 
       <style>{`
