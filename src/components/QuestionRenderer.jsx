@@ -451,12 +451,9 @@ function NotesSection({ section, answers, onChange, reviewMode }) {
   return (
     <SectionCard section={section}>
       {section.title && (
-  <p key={li} style={{ fontSize: 13, color: '#334155', lineHeight: '2.2em' }}>
-  <span style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>{line.qNo}.</span>
-  {line.before && <span> {line.before} </span>}
-  <input ... />
-  {line.after && <span> {line.after}</span>}
-  </p>
+        <p style={{ fontWeight: 700, color: '#0f172a', fontSize: 13, textDecoration: 'underline', marginBottom: 10 }}>
+          {section.title}
+        </p>
       )}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         {(section.lines || []).map((line, li) => {
@@ -468,12 +465,11 @@ function NotesSection({ section, answers, onChange, reviewMode }) {
               </p>
             )
           }
-
-          // Line with a blank
+          // Line with a blank — inline so question number sits within the text
           return (
-            <div key={li} style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 5, fontSize: 13, color: '#334155', marginLeft: 8 }}>
-              <span style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>{line.qNo}.</span>
-              {line.before && <span>{line.before}</span>}
+            <p key={li} style={{ fontSize: 13, color: '#334155', lineHeight: '2.2em', margin: 0 }}>
+              <span style={{ fontSize: 13, fontWeight: 700, color: '#0f172a', marginRight: 4 }}>{line.qNo}.</span>
+              {line.before && <span>{line.before} </span>}
               <input
                 type="text"
                 value={answers[line.qNo] || ''}
@@ -482,9 +478,9 @@ function NotesSection({ section, answers, onChange, reviewMode }) {
                 placeholder={reviewMode && !answers[line.qNo] ? '(not answered)' : '…'}
                 style={inputStyle(line.qNo, answers, line.answer, reviewMode)}
               />
-              {line.after && <span>{line.after}</span>}
+              {line.after && <span> {line.after}</span>}
               <CorrectAnswer qNo={line.qNo} answers={answers} correctAnswer={line.answer} reviewMode={reviewMode} />
-            </div>
+            </p>
           )
         })}
       </div>
