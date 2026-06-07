@@ -140,7 +140,7 @@ function FormSection({ section, answers, onChange, reviewMode }) {
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         {(section.fields || []).map(field => (
           <div key={field.qNo} style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-            <span style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', minWidth: 18 }}>
+            <span style={{ fontSize: 13, fontWeight: 700, color: '#0f172a', minWidth: 18 }}>
               {field.qNo}.
             </span>
             <span style={{ fontSize: 13, color: '#334155', fontWeight: 500, minWidth: 120 }}>
@@ -196,7 +196,7 @@ function TableSection({ section, answers, onChange, reviewMode }) {
                       <span style={{ display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap' }}>
                         {cell.label && <span style={{ color: '#64748b', fontSize: 11.5 }}>{cell.label}:</span>}
                         {cell.prefix && <span style={{ color: '#64748b', fontSize: 11.5 }}>{cell.prefix}</span>}
-                        <span style={{ fontSize: 10, fontWeight: 700, color: '#94a3b8' }}>{cell.qNo}.</span>
+                        <span style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>{cell.qNo}.</span>
                         <input
                           type="text"
                           value={answers[cell.qNo] || ''}
@@ -292,7 +292,7 @@ function McqSection({ section, answers, onChange, reviewMode }) {
                         border: `2px solid ${border}`,
                         background: isSel ? border : 'transparent',
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        color: '#fff', fontSize: 12, fontWeight: 700, flexShrink: 0,
+                        color: isSel ? '#fff' : '#64748b', fontSize: 12, fontWeight: 700, flexShrink: 0,
                       }}>
                         {isSel ? '✓' : letter}
                       </div>
@@ -366,7 +366,7 @@ function McqGroupSection({ section, answers, onChange, reviewMode }) {
 
           return (
             <div key={q.qNo} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <span style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', minWidth: 20 }}>{q.qNo}.</span>
+              <span style={{ fontSize: 13, fontWeight: 700, color: '#0f172a', minWidth: 20 }}>{q.qNo}.</span>
               <select
                 value={answers[q.qNo] || ''}
                 onChange={e => !reviewMode && onChange(q.qNo, e.target.value)}
@@ -425,7 +425,7 @@ function FillSection({ section, answers, onChange, reviewMode }) {
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         {(section.questions || []).map(q => (
           <div key={q.qNo} style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 5, fontSize: 13, color: '#334155' }}>
-            <span style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8' }}>{q.qNo}.</span>
+            <span style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>{q.qNo}.</span>
             {q.before && <span>{q.before}</span>}
             <input
               type="text"
@@ -469,7 +469,7 @@ function NotesSection({ section, answers, onChange, reviewMode }) {
           // Line with a blank
           return (
             <div key={li} style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 5, fontSize: 13, color: '#334155', marginLeft: 8 }}>
-              <span style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8' }}>{line.qNo}.</span>
+              <span style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>{line.qNo}.</span>
               {line.before && <span>{line.before}</span>}
               <input
                 type="text"
@@ -505,7 +505,7 @@ function MapSection({ section, answers, onChange, reviewMode }) {
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         {(section.questions || []).map(q => (
           <div key={q.qNo} style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', fontSize: 13 }}>
-            <span style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', minWidth: 20 }}>{q.qNo}.</span>
+            <span style={{ fontSize: 13, fontWeight: 700, color: '#0f172a', minWidth: 20 }}>{q.qNo}.</span>
             {q.label && <span style={{ color: '#475569', minWidth: 70 }}>{q.label}</span>}
             <input
               type="text"
@@ -565,7 +565,7 @@ function MatchingSection({ section, answers, onChange, reviewMode }) {
 
           return (
             <div key={item.qNo} style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-              <span style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', minWidth: 20 }}>{item.qNo}.</span>
+              <span style={{ fontSize: 13, fontWeight: 700, color: '#0f172a', minWidth: 20 }}>{item.qNo}.</span>
               <span style={{ fontSize: 13, color: '#475569', flex: 1, minWidth: 130 }}>{item.label}</span>
               <select
                 value={selected || ''}
