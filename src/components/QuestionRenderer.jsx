@@ -451,9 +451,12 @@ function NotesSection({ section, answers, onChange, reviewMode }) {
   return (
     <SectionCard section={section}>
       {section.title && (
-        <p style={{ fontWeight: 700, color: '#0f172a', fontSize: 13, textDecoration: 'underline', marginBottom: 10 }}>
-          {section.title}
-        </p>
+  <p key={li} style={{ fontSize: 13, color: '#334155', lineHeight: '2.2em' }}>
+  <span style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>{line.qNo}.</span>
+  {line.before && <span> {line.before} </span>}
+  <input ... />
+  {line.after && <span> {line.after}</span>}
+  </p>
       )}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         {(section.lines || []).map((line, li) => {
